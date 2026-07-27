@@ -1,0 +1,12 @@
+*.exe
+*.o
+*.obj
+cars.txt
+rentals.txt
+.vs/
+*.user
+x64/
+Debug/
+Release/
+*.ilk
+*.pdb
