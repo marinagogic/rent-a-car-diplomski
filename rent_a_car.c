@@ -5,6 +5,7 @@
  *
  * Aplikacija omogucava dodavanje, brisanje, iznajmljivanje i vracanje
  * automobila, kao i pregled istorije iznajmljivanja.
+ *
  */
 
 #include <stdio.h>
@@ -22,10 +23,16 @@
 #define DUZINA_IMENA     50   /**< Maksimalna duzina stringa za ime i prezime klijenta. */
 #define DUZINA_DATUMA    11   /**< Duzina stringa za datum u formatu DD-MM-GGGG (ukljucujuci '\0'). */
 
+#define MIN_GODISTE   1950   /**< Najmanje dozvoljeno godiste automobila. */
+#define MAX_GODISTE   2100   /**< Najvece dozvoljeno godiste automobila. */
 
-   /**
-    * \brief Struktura koja opisuje jedan automobil u sistemu.
-    */
+#define MIN_BROJ_DANA    1    /**< Najmanji dozvoljen broj dana iznajmljivanja. */
+#define MAX_BROJ_DANA  365    /**< Najveci dozvoljen broj dana iznajmljivanja. */
+
+
+ /**
+  * \brief Struktura koja opisuje jedan automobil u sistemu.
+  */
 typedef struct
 {
     int   id;                          /**< Jedinstveni identifikator automobila. */
@@ -52,31 +59,64 @@ typedef struct
     int   aktivno;                     /**< 1 = automobil jos nije vracen, 0 = iznajmljivanje je zavrseno. */
 } Iznajmljivanje;
 
+/**
+ * \brief Status kodovi koje vracaju funkcije poslovne logike.
+ */
+typedef enum
+{
+    RENT_OK = 0,                /**< Operacija uspjesno izvrsena. */
+    RENT_NULL_POINTER,          /**< Prosledjen je NULL pokazivac tamo gdje se ocekivao validan. */
+    RENT_INVALID_YEAR,          /**< Godiste automobila nije u dozvoljenom opsegu. */
+    RENT_INVALID_PRICE,         /**< Cijena po danu nije veca od nule. */
+    RENT_INVALID_DAYS,          /**< Broj dana iznajmljivanja nije u dozvoljenom opsegu. */
+    RENT_INVALID_ID,            /**< Nevalidan ID (npr. van opsega niza). */
+    RENT_CAR_NOT_FOUND,         /**< Automobil sa datim ID-om ne postoji. */
+    RENT_CAR_NOT_AVAILABLE,     /**< Automobil je trenutno iznajmljen. */
+    RENT_CAR_ALREADY_AVAILABLE, /**< Automobil vec nije iznajmljen (vracanje nije potrebno). */
+    RENT_RENTAL_NOT_FOUND,      /**< Nije pronadjen aktivan zapis iznajmljivanja. */
+    RENT_LIMIT_REACHED,         /**< Dostignut je maksimalan broj zapisa u nizu. */
+    RENT_PARSE_ERROR,           /**< Greska pri parsiranju linije iz fajla. */
+    RENT_FILE_ERROR             /**< Greska pri radu sa fajlom. */
+} RentStatus;
+
 Automobil       automobili[MAX_AUTOMOBILA];        /**< Niz svih automobila trenutno ucitanih u memoriju. */
 int             brojAutomobila = 0;                /**< Trenutan broj automobila u nizu \ref automobili. */
 
 Iznajmljivanje  iznajmljivanja[MAX_IZNAJMLJIVANJA]; /**< Niz svih zapisa o iznajmljivanju ucitanih u memoriju. */
 int             brojIznajmljivanja = 0;             /**< Trenutan broj zapisa u nizu \ref iznajmljivanja. */
 
- /* Rad sa fajlovima */
+/* Rad sa fajlovima */
 void ucitajAutomobile(void);
 void sacuvajAutomobile(void);
 void ucitajIznajmljivanja(void);
 void sacuvajIznajmljivanja(void);
+RentStatus parsirajAutomobil(const char* linija, Automobil* automobil);
+RentStatus parsirajIznajmljivanje(const char* linija, Iznajmljivanje* iznajmljivanje);
 
 /* Pomocne funkcije */
 int  sledeciIdAutomobila(void);
 int  sledeciIdIznajmljivanja(void);
 int  pronadjiAutomobilPoId(int id);
+int  pronadjiAktivnoIznajmljivanjeZaAuto(const Iznajmljivanje niz[], int brojElemenata, int idAutomobila);
 void ocistiUlazniBafer(void);
 
-/* Ciste (pure) funkcije */
+/* Ciste (pure) funkcije - poslovna logika bez I/O i bez globalnog stanja, lako testabilne */
 float       izracunajUkupnuCijenu(int brojDana, float cijenaPoDanu);
 int         jeAutomobilDostupan(const Automobil* automobil);
 int         jeBrojDanaValidan(int brojDana);
 int         jeGodisteValidno(int godiste);
 int         jeCijenaValidna(float cijena);
 const char* formatirajStatusAutomobila(int dostupan);
+const char* opisStatusa(RentStatus status);
+
+RentStatus validirajAutomobil(const Automobil* automobil);
+RentStatus kreirajAutomobil(Automobil* noviAutomobil, int id, const char* marka, const char* model,
+    int godiste, float cijenaPoDanu);
+RentStatus validirajBrisanjeAutomobila(const Automobil* automobil);
+RentStatus obrisiAutomobilNaIndeksu(Automobil niz[], int* brojElemenata, int indeks);
+RentStatus pripremiIznajmljivanje(Iznajmljivanje* iznajmljivanje, int id, int idAutomobila, float cijenaPoDanu,
+    const char* ime, const char* prezime, const char* datumPocetka, const char* datumKraja, int brojDana);
+RentStatus obradiVracanjeAutomobila(Automobil* automobil, Iznajmljivanje* iznajmljivanje);
 
 /* Funkcionalnosti menija */
 void dodajAutomobil(void);
@@ -87,15 +127,15 @@ void vratiAutomobil(void);
 void prikaziIznajmljivanja(void);
 void prikaziMeni(void);
 
- /**
-  * \brief Ulazna tacka programa.
-  *
-  * Ucitava postojece podatke iz fajlova \ref CARS_FILE i \ref RENTALS_FILE,
-  * zatim u petlji prikazuje glavni meni i poziva odgovarajucu funkciju na
-  * osnovu izbora korisnika, sve dok korisnik ne izabere opciju za izlaz (0).
-  *
-  * \return 0 ako je program uspesno zavrsen.
-  */
+/**
+ * \brief Ulazna tacka programa.
+ *
+ * Ucitava postojece podatke iz fajlova \ref CARS_FILE i \ref RENTALS_FILE,
+ * zatim u petlji prikazuje glavni meni i poziva odgovarajucu funkciju na
+ * osnovu izbora korisnika, sve dok korisnik ne izabere opciju za izlaz (0).
+ *
+ * \return 0 ako je program uspesno zavrsen.
+ */
 int main(void)
 {
     int izbor;
@@ -257,19 +297,56 @@ int pronadjiAutomobilPoId(int id)
     return -1;
 }
 
- /**
-  * \brief Racuna ukupnu cijenu iznajmljivanja.
-  *
-  * Funkcija nema nikakvih zavisnosti od globalnog stanja programa niti od
-  * ulazno/izlaznih operacija, sto je cini direktno testabilnom.
-  *
-  * \param [in] brojDana      Broj dana iznajmljivanja.
-  * \param [in] cijenaPoDanu  Cijena iznajmljivanja po danu, u KM.
-  *
-  * \return Ukupna cijena iznajmljivanja (brojDana * cijenaPoDanu).
-  */
+/**
+ * \brief Pronalazi indeks aktivnog zapisa o iznajmljivanju za dati automobil.
+ *
+ * \param [in] niz            Niz zapisa o iznajmljivanju koji se pretrazuje.
+ * \param [in] brojElemenata  Broj validnih elemenata u nizu \p niz.
+ * \param [in] idAutomobila   ID automobila za koji se trazi aktivan zapis.
+ *
+ * \return Indeks prvog aktivnog zapisa za dati automobil, ili -1 ako takav
+ *         zapis ne postoji ili je \p niz NULL.
+ */
+int pronadjiAktivnoIznajmljivanjeZaAuto(const Iznajmljivanje niz[], int brojElemenata, int idAutomobila)
+{
+    int i;
+
+    if (niz == NULL)
+    {
+        return -1;
+    }
+
+    for (i = 0; i < brojElemenata; i++)
+    {
+        if (niz[i].id_automobila == idAutomobila && niz[i].aktivno == 1)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * \brief Racuna ukupnu cijenu iznajmljivanja.
+ *
+ * \param [in] brojDana      Broj dana iznajmljivanja.
+ * \param [in] cijenaPoDanu  Cijena iznajmljivanja po danu, u KM.
+ *
+ * \return Ukupna cijena iznajmljivanja (brojDana * cijenaPoDanu), ili
+ *         -1.0f ako je broj dana ili cijena po danu nevalidna.
+ */
 float izracunajUkupnuCijenu(int brojDana, float cijenaPoDanu)
 {
+    if (!jeBrojDanaValidan(brojDana))
+    {
+        return -1.0f;
+    }
+
+    if (!jeCijenaValidna(cijenaPoDanu))
+    {
+        return -1.0f;
+    }
+
     return brojDana * cijenaPoDanu;
 }
 
@@ -296,11 +373,11 @@ int jeAutomobilDostupan(const Automobil* automobil)
  *
  * \param [in] brojDana Broj dana koji se provjerava.
  *
- * \return 1 ako je brojDana veci od nule, inace 0.
+ * \return 1 ako je brojDana u opsegu [\ref MIN_BROJ_DANA, \ref MAX_BROJ_DANA], inace 0.
  */
 int jeBrojDanaValidan(int brojDana)
 {
-    return (brojDana > 0);
+    return (brojDana >= MIN_BROJ_DANA && brojDana <= MAX_BROJ_DANA);
 }
 
 /**
@@ -308,11 +385,11 @@ int jeBrojDanaValidan(int brojDana)
  *
  * \param [in] godiste Godiste koje se provjerava.
  *
- * \return 1 ako je godiste izmedju 1950 i 2100 (ukljucivo), inace 0.
+ * \return 1 ako je godiste izmedju \ref MIN_GODISTE i \ref MAX_GODISTE (ukljucivo), inace 0.
  */
 int jeGodisteValidno(int godiste)
 {
-    return (godiste >= 1950 && godiste <= 2100);
+    return (godiste >= MIN_GODISTE && godiste <= MAX_GODISTE);
 }
 
 /**
@@ -343,16 +420,361 @@ const char* formatirajStatusAutomobila(int dostupan)
     return "Iznajmljen";
 }
 
- /**
-  * \brief Ucitava sve automobile iz fajla \ref CARS_FILE u niz \ref automobili.
-  *
-  * Format jedne linije u fajlu je:
-  * `id;marka;model;godiste;cijena_po_danu;dostupan`
-  *
-  * Ako fajl ne postoji, funkcija tiho zavrsava rad i program nastavlja sa
-  * praznom listom automobila - ovo je ocekivano ponasanje pri prvom
-  * pokretanju programa.
-  */
+/**
+ * \brief Vraca citljiv tekstualni opis za dati \ref RentStatus.
+ *
+ * \param [in] status Status kod ciji se opis trazi.
+ *
+ * \return Pokazivac na staticki string sa opisom statusa.
+ */
+const char* opisStatusa(RentStatus status)
+{
+    switch (status)
+    {
+    case RENT_OK:
+        return "Operacija je uspjesno izvrsena.";
+    case RENT_NULL_POINTER:
+        return "GRESKA: Nevalidan (null) pokazivac.";
+    case RENT_INVALID_YEAR:
+        return "Godiste nije u dozvoljenom opsegu (1950-2100).";
+    case RENT_INVALID_PRICE:
+        return "Cijena po danu mora biti veca od nule.";
+    case RENT_INVALID_DAYS:
+        return "Broj dana mora biti u opsegu 1-365.";
+    case RENT_INVALID_ID:
+        return "Nevalidan ID.";
+    case RENT_CAR_NOT_FOUND:
+        return "Automobil sa datim ID-om ne postoji.";
+    case RENT_CAR_NOT_AVAILABLE:
+        return "Automobil je trenutno iznajmljen.";
+    case RENT_CAR_ALREADY_AVAILABLE:
+        return "Ovaj automobil trenutno nije iznajmljen.";
+    case RENT_RENTAL_NOT_FOUND:
+        return "Nije pronadjen aktivan zapis iznajmljivanja za ovaj automobil.";
+    case RENT_LIMIT_REACHED:
+        return "Dostignut je maksimalan dozvoljeni broj zapisa.";
+    case RENT_PARSE_ERROR:
+        return "Greska pri parsiranju linije iz fajla.";
+    case RENT_FILE_ERROR:
+        return "Greska pri radu sa fajlom.";
+    default:
+        return "Nepoznat status.";
+    }
+}
+
+/**
+ * \brief Validira podatke automobila (godiste i cijenu po danu).
+ *
+ * \param [in] automobil Automobil ciji se podaci provjeravaju.
+ *
+ * \return \ref RENT_NULL_POINTER ako je \p automobil NULL,
+ *         \ref RENT_INVALID_YEAR ako godiste nije validno,
+ *         \ref RENT_INVALID_PRICE ako cijena po danu nije validna,
+ *         inace \ref RENT_OK.
+ */
+RentStatus validirajAutomobil(const Automobil* automobil)
+{
+    if (automobil == NULL)
+    {
+        return RENT_NULL_POINTER;
+    }
+
+    if (!jeGodisteValidno(automobil->godiste))
+    {
+        return RENT_INVALID_YEAR;
+    }
+
+    if (!jeCijenaValidna(automobil->cijena_po_danu))
+    {
+        return RENT_INVALID_PRICE;
+    }
+
+    return RENT_OK;
+}
+
+/**
+ * \brief Popunjava strukturu novog automobila i validira njegove podatke.
+ *
+ * \param [out] noviAutomobil Struktura koja se popunjava.
+ * \param [in]  id            ID koji ce biti dodijeljen automobilu.
+ * \param [in]  marka         Marka automobila (kopira se, max \ref DUZINA_STRINGA - 1 karaktera).
+ * \param [in]  model         Model automobila (kopira se, max \ref DUZINA_STRINGA - 1 karaktera).
+ * \param [in]  godiste       Godiste automobila.
+ * \param [in]  cijenaPoDanu  Cijena iznajmljivanja po danu.
+ *
+ * \return \ref RENT_NULL_POINTER ako je neki od pokazivaca NULL,
+ *         \ref RENT_INVALID_YEAR / \ref RENT_INVALID_PRICE ako podaci nisu validni,
+ *         inace \ref RENT_OK (automobil je popunjen i oznacen kao dostupan).
+ */
+RentStatus kreirajAutomobil(Automobil* noviAutomobil, int id, const char* marka, const char* model,
+    int godiste, float cijenaPoDanu)
+{
+    RentStatus status;
+
+    if (noviAutomobil == NULL || marka == NULL || model == NULL)
+    {
+        return RENT_NULL_POINTER;
+    }
+
+    noviAutomobil->id = id;
+
+    strncpy(noviAutomobil->marka, marka, DUZINA_STRINGA - 1);
+    noviAutomobil->marka[DUZINA_STRINGA - 1] = '\0';
+
+    strncpy(noviAutomobil->model, model, DUZINA_STRINGA - 1);
+    noviAutomobil->model[DUZINA_STRINGA - 1] = '\0';
+
+    noviAutomobil->godiste = godiste;
+    noviAutomobil->cijena_po_danu = cijenaPoDanu;
+    noviAutomobil->dostupan = 1; /* novi automobil je odmah dostupan, ako prodje validaciju */
+
+    status = validirajAutomobil(noviAutomobil);
+    return status;
+}
+
+/**
+ * \brief Provjerava da li automobil smije biti obrisan.
+ *
+ * \param [in] automobil Automobil koji se provjerava.
+ *
+ * \return \ref RENT_NULL_POINTER ako je \p automobil NULL,
+ *         \ref RENT_CAR_NOT_AVAILABLE ako je automobil trenutno iznajmljen,
+ *         inace \ref RENT_OK.
+ */
+RentStatus validirajBrisanjeAutomobila(const Automobil* automobil)
+{
+    if (automobil == NULL)
+    {
+        return RENT_NULL_POINTER;
+    }
+
+    if (!jeAutomobilDostupan(automobil))
+    {
+        return RENT_CAR_NOT_AVAILABLE;
+    }
+
+    return RENT_OK;
+}
+
+/**
+ * \brief Uklanja automobil sa datog indeksa iz niza, pomjerajuci ostale elemente.
+ *
+ * \param [in,out] niz            Niz automobila iz kojeg se uklanja element.
+ * \param [in,out] brojElemenata  Pokazivac na trenutni broj elemenata u nizu; umanjuje se za 1 pri uspjehu.
+ * \param [in]     indeks         Indeks elementa koji se uklanja.
+ *
+ * \return \ref RENT_NULL_POINTER ako je \p niz ili \p brojElemenata NULL,
+ *         \ref RENT_INVALID_ID ako je \p indeks van opsega,
+ *         inace \ref RENT_OK.
+ */
+RentStatus obrisiAutomobilNaIndeksu(Automobil niz[], int* brojElemenata, int indeks)
+{
+    int i;
+
+    if (niz == NULL || brojElemenata == NULL)
+    {
+        return RENT_NULL_POINTER;
+    }
+
+    if (indeks < 0 || indeks >= *brojElemenata)
+    {
+        return RENT_INVALID_ID;
+    }
+
+    for (i = indeks; i < *brojElemenata - 1; i++)
+    {
+        niz[i] = niz[i + 1];
+    }
+    (*brojElemenata)--;
+
+    return RENT_OK;
+}
+
+/**
+ * \brief Popunjava i validira novi zapis o iznajmljivanju.
+ *
+ * \param [out] iznajmljivanje Struktura koja se popunjava.
+ * \param [in]  id             ID novog zapisa o iznajmljivanju.
+ * \param [in]  idAutomobila   ID automobila koji se iznajmljuje.
+ * \param [in]  cijenaPoDanu   Cijena po danu za dati automobil.
+ * \param [in]  ime            Ime klijenta (kopira se, max \ref DUZINA_IMENA - 1 karaktera).
+ * \param [in]  prezime        Prezime klijenta (kopira se, max \ref DUZINA_IMENA - 1 karaktera).
+ * \param [in]  datumPocetka   Datum pocetka iznajmljivanja (kopira se, max \ref DUZINA_DATUMA - 1 karaktera).
+ * \param [in]  datumKraja     Datum kraja iznajmljivanja (kopira se, max \ref DUZINA_DATUMA - 1 karaktera).
+ * \param [in]  brojDana       Broj dana iznajmljivanja.
+ *
+ * \return \ref RENT_NULL_POINTER ako je neki od pokazivaca NULL,
+ *         \ref RENT_INVALID_DAYS ako broj dana nije validan,
+ *         \ref RENT_INVALID_PRICE ako cijena po danu nije validna,
+ *         inace \ref RENT_OK.
+ */
+RentStatus pripremiIznajmljivanje(Iznajmljivanje* iznajmljivanje, int id, int idAutomobila, float cijenaPoDanu,
+    const char* ime, const char* prezime, const char* datumPocetka, const char* datumKraja, int brojDana)
+{
+    float ukupnaCijena;
+
+    if (iznajmljivanje == NULL || ime == NULL || prezime == NULL || datumPocetka == NULL || datumKraja == NULL)
+    {
+        return RENT_NULL_POINTER;
+    }
+
+    if (!jeBrojDanaValidan(brojDana))
+    {
+        return RENT_INVALID_DAYS;
+    }
+
+    if (!jeCijenaValidna(cijenaPoDanu))
+    {
+        return RENT_INVALID_PRICE;
+    }
+
+    ukupnaCijena = izracunajUkupnuCijenu(brojDana, cijenaPoDanu);
+    if (ukupnaCijena < 0.0f)
+    {
+        return RENT_INVALID_DAYS;
+    }
+
+    iznajmljivanje->id = id;
+    iznajmljivanje->id_automobila = idAutomobila;
+
+    strncpy(iznajmljivanje->ime, ime, DUZINA_IMENA - 1);
+    iznajmljivanje->ime[DUZINA_IMENA - 1] = '\0';
+
+    strncpy(iznajmljivanje->prezime, prezime, DUZINA_IMENA - 1);
+    iznajmljivanje->prezime[DUZINA_IMENA - 1] = '\0';
+
+    strncpy(iznajmljivanje->datum_pocetka, datumPocetka, DUZINA_DATUMA - 1);
+    iznajmljivanje->datum_pocetka[DUZINA_DATUMA - 1] = '\0';
+
+    strncpy(iznajmljivanje->datum_kraja, datumKraja, DUZINA_DATUMA - 1);
+    iznajmljivanje->datum_kraja[DUZINA_DATUMA - 1] = '\0';
+
+    iznajmljivanje->broj_dana = brojDana;
+    iznajmljivanje->ukupna_cijena = ukupnaCijena;
+    iznajmljivanje->aktivno = 1;
+
+    return RENT_OK;
+}
+
+/**
+ * \brief Obradjuje vracanje automobila (poslovna logika, bez I/O).
+ *
+ * \param [in,out] automobil       Automobil koji se vraca.
+ * \param [in,out] iznajmljivanje  Pokazivac na aktivan zapis iznajmljivanja za ovaj automobil,
+ *                                 ili NULL ako takav zapis nije pronadjen.
+ *
+ * \return \ref RENT_NULL_POINTER ako je \p automobil NULL,
+ *         \ref RENT_CAR_ALREADY_AVAILABLE ako automobil vec nije iznajmljen,
+ *         \ref RENT_RENTAL_NOT_FOUND ako \p iznajmljivanje nije prosledjen (NULL) -
+ *         u tom slucaju je status automobila i dalje azuriran na dostupan,
+ *         inace \ref RENT_OK.
+ */
+RentStatus obradiVracanjeAutomobila(Automobil* automobil, Iznajmljivanje* iznajmljivanje)
+{
+    if (automobil == NULL)
+    {
+        return RENT_NULL_POINTER;
+    }
+
+    if (jeAutomobilDostupan(automobil))
+    {
+        return RENT_CAR_ALREADY_AVAILABLE;
+    }
+
+    /* Status automobila se azurira bez obzira na to da li je aktivan zapis pronadjen -
+       ovo je zastitna mjera protiv nekonzistentnog stanja podataka. */
+    automobil->dostupan = 1;
+
+    if (iznajmljivanje == NULL)
+    {
+        return RENT_RENTAL_NOT_FOUND;
+    }
+
+    iznajmljivanje->aktivno = 0;
+    return RENT_OK;
+}
+
+/**
+ * \brief Parsira jednu liniju teksta u strukturu \ref Automobil.
+ *
+ * \param [in]  linija    Linija teksta koja se parsira.
+ * \param [out] automobil Struktura u koju se upisuje rezultat parsiranja.
+ *
+ * \return \ref RENT_NULL_POINTER ako je \p linija ili \p automobil NULL,
+ *         \ref RENT_PARSE_ERROR ako linija nema svih 6 ocekivanih polja,
+ *         inace \ref RENT_OK.
+ */
+RentStatus parsirajAutomobil(const char* linija, Automobil* automobil)
+{
+    int uneseno;
+
+    if (linija == NULL || automobil == NULL)
+    {
+        return RENT_NULL_POINTER;
+    }
+
+    uneseno = sscanf(linija, "%d;%29[^;];%29[^;];%d;%f;%d",
+        &automobil->id,
+        automobil->marka,
+        automobil->model,
+        &automobil->godiste,
+        &automobil->cijena_po_danu,
+        &automobil->dostupan);
+
+    if (uneseno != 6)
+    {
+        return RENT_PARSE_ERROR;
+    }
+
+    return RENT_OK;
+}
+
+/**
+ * \brief Parsira jednu liniju teksta u strukturu \ref Iznajmljivanje.
+ *
+ * \param [in]  linija         Linija teksta koja se parsira.
+ * \param [out] iznajmljivanje Struktura u koju se upisuje rezultat parsiranja.
+ *
+ * \return \ref RENT_NULL_POINTER ako je \p linija ili \p iznajmljivanje NULL,
+ *         \ref RENT_PARSE_ERROR ako linija nema svih 9 ocekivanih polja,
+ *         inace \ref RENT_OK.
+ */
+RentStatus parsirajIznajmljivanje(const char* linija, Iznajmljivanje* iznajmljivanje)
+{
+    int uneseno;
+
+    if (linija == NULL || iznajmljivanje == NULL)
+    {
+        return RENT_NULL_POINTER;
+    }
+
+    uneseno = sscanf(linija, "%d;%d;%49[^;];%49[^;];%10[^;];%10[^;];%d;%f;%d",
+        &iznajmljivanje->id,
+        &iznajmljivanje->id_automobila,
+        iznajmljivanje->ime,
+        iznajmljivanje->prezime,
+        iznajmljivanje->datum_pocetka,
+        iznajmljivanje->datum_kraja,
+        &iznajmljivanje->broj_dana,
+        &iznajmljivanje->ukupna_cijena,
+        &iznajmljivanje->aktivno);
+
+    if (uneseno != 9)
+    {
+        return RENT_PARSE_ERROR;
+    }
+
+    return RENT_OK;
+}
+
+/**
+ * \brief Ucitava sve automobile iz fajla \ref CARS_FILE u niz \ref automobili.
+ *
+ * Citanje fajla je odvojeno od parsiranja linija - za samo parsiranje se
+ * koristi \ref parsirajAutomobil. Ako fajl ne postoji, funkcija tiho
+ * zavrsava rad i program nastavlja sa praznom listom automobila - ovo je
+ * ocekivano ponasanje pri prvom pokretanju programa.
+ */
 void ucitajAutomobile(void)
 {
     FILE* fp;
@@ -371,15 +793,7 @@ void ucitajAutomobile(void)
     {
         Automobil a;
 
-        int uneseno = sscanf(linija, "%d;%29[^;];%29[^;];%d;%f;%d",
-            &a.id,
-            a.marka,
-            a.model,
-            &a.godiste,
-            &a.cijena_po_danu,
-            &a.dostupan);
-
-        if (uneseno == 6)
+        if (parsirajAutomobil(linija, &a) == RENT_OK)
         {
             automobili[brojAutomobila] = a;
             brojAutomobila++;
@@ -404,7 +818,7 @@ void sacuvajAutomobile(void)
     fp = fopen(CARS_FILE, "w");
     if (fp == NULL)
     {
-        printf("\nGRESKA: Ne mogu da otvorim %s za pisanje!\n\n", CARS_FILE);
+        printf("\n%s (%s)\n\n", opisStatusa(RENT_FILE_ERROR), CARS_FILE);
         return;
     }
 
@@ -422,15 +836,13 @@ void sacuvajAutomobile(void)
     fclose(fp);
 }
 
- /**
-  * \brief Ucitava sve zapise o iznajmljivanju iz fajla \ref RENTALS_FILE.
-  *
-  * Format jedne linije u fajlu je:
-  * `id;id_automobila;ime;prezime;datum_pocetka;datum_kraja;broj_dana;ukupna_cijena;aktivno`
-  *
-  * Ako fajl ne postoji, funkcija tiho zavrsava rad i program nastavlja sa
-  * praznom listom iznajmljivanja.
-  */
+/**
+ * \brief Ucitava sve zapise o iznajmljivanju iz fajla \ref RENTALS_FILE.
+ *
+ * Citanje fajla je odvojeno od parsiranja linija - za samo parsiranje se
+ * koristi \ref parsirajIznajmljivanje. Ako fajl ne postoji, funkcija tiho
+ * zavrsava rad i program nastavlja sa praznom listom iznajmljivanja.
+ */
 void ucitajIznajmljivanja(void)
 {
     FILE* fp;
@@ -448,18 +860,7 @@ void ucitajIznajmljivanja(void)
     {
         Iznajmljivanje r;
 
-        int uneseno = sscanf(linija, "%d;%d;%49[^;];%49[^;];%10[^;];%10[^;];%d;%f;%d",
-            &r.id,
-            &r.id_automobila,
-            r.ime,
-            r.prezime,
-            r.datum_pocetka,
-            r.datum_kraja,
-            &r.broj_dana,
-            &r.ukupna_cijena,
-            &r.aktivno);
-
-        if (uneseno == 9)
+        if (parsirajIznajmljivanje(linija, &r) == RENT_OK)
         {
             iznajmljivanja[brojIznajmljivanja] = r;
             brojIznajmljivanja++;
@@ -483,7 +884,7 @@ void sacuvajIznajmljivanja(void)
     fp = fopen(RENTALS_FILE, "w");
     if (fp == NULL)
     {
-        printf("\nGRESKA: Ne mogu da otvorim %s za pisanje!\n\n", RENTALS_FILE);
+        printf("\n%s (%s)\n\n", opisStatusa(RENT_FILE_ERROR), RENTALS_FILE);
         return;
     }
 
@@ -504,20 +905,21 @@ void sacuvajIznajmljivanja(void)
     fclose(fp);
 }
 
- /**
-  * \brief Ucitava podatke o novom automobilu sa standardnog ulaza i dodaje
-  *        ga u sistem.
-  *
-  * Funkcija trazi od korisnika marku, model, godiste i cijenu po danu.
-  * Novi automobil dobija ID preko funkcije \ref sledeciIdAutomobila i
-  * podrazumevano se oznacava kao dostupan. Godiste i cijena se validiraju
-  * pomocu funkcija \ref jeGodisteValidno i \ref jeCijenaValidna - ako neka
-  * od provjera ne prodje, automobil se ne dodaje. Nakon uspesnog dodavanja,
-  * stanje se cuva u fajl pozivom funkcije \ref sacuvajAutomobile.
-  */
+/**
+ * \brief Ucitava podatke o novom automobilu sa standardnog ulaza i dodaje
+ *        ga u sistem.
+ *
+ * Funkcija samo cita unos sa standardnog ulaza i prosledjuje ga funkciji
+ * \ref kreirajAutomobil, koja obavlja svu validaciju i popunjava strukturu.
+ */
 void dodajAutomobil(void)
 {
     Automobil noviAuto;
+    char marka[DUZINA_STRINGA];
+    char model[DUZINA_STRINGA];
+    int godiste;
+    float cijenaPoDanu;
+    RentStatus status;
 
     if (brojAutomobila >= MAX_AUTOMOBILA)
     {
@@ -525,37 +927,29 @@ void dodajAutomobil(void)
         return;
     }
 
-    noviAuto.id = sledeciIdAutomobila();
-
     printf("\n--- Dodavanje novog automobila ---\n");
 
     printf("Marka: ");
-    scanf("%29s", noviAuto.marka);
+    scanf("%29s", marka);
 
     printf("Model: ");
-    scanf("%29s", noviAuto.model);
+    scanf("%29s", model);
 
     printf("Godiste: ");
-    scanf("%d", &noviAuto.godiste);
+    scanf("%d", &godiste);
 
     printf("Cijena po danu (KM): ");
-    scanf("%f", &noviAuto.cijena_po_danu);
+    scanf("%f", &cijenaPoDanu);
 
     ocistiUlazniBafer();
 
-    if (!jeGodisteValidno(noviAuto.godiste))
+    status = kreirajAutomobil(&noviAuto, sledeciIdAutomobila(), marka, model, godiste, cijenaPoDanu);
+
+    if (status != RENT_OK)
     {
-        printf("\nGodiste nije u dozvoljenom opsegu (1950-2100). Automobil nije dodat.\n\n");
+        printf("\n%s Automobil nije dodat.\n\n", opisStatusa(status));
         return;
     }
-
-    if (!jeCijenaValidna(noviAuto.cijena_po_danu))
-    {
-        printf("\nCijena po danu mora biti veca od nule. Automobil nije dodat.\n\n");
-        return;
-    }
-
-    noviAuto.dostupan = 1; /* novi automobil je odmah dostupan */
 
     automobili[brojAutomobila] = noviAuto;
     brojAutomobila++;
@@ -565,12 +959,12 @@ void dodajAutomobil(void)
     printf("\nAutomobil je uspjesno dodat! (ID: %d)\n\n", noviAuto.id);
 }
 
- /**
-  * \brief Ispisuje tabelarni pregled svih automobila trenutno u sistemu.
-  *
-  * Za status svakog automobila koristi funkciju \ref formatirajStatusAutomobila.
-  * Ako trenutno nema unetih automobila, ispisuje odgovarajucu poruku.
-  */
+/**
+ * \brief Ispisuje tabelarni pregled svih automobila trenutno u sistemu.
+ *
+ * Za status svakog automobila koristi funkciju \ref formatirajStatusAutomobila.
+ * Ako trenutno nema unetih automobila, ispisuje odgovarajucu poruku.
+ */
 void prikaziAutomobile(void)
 {
     int i;
@@ -600,17 +994,17 @@ void prikaziAutomobile(void)
     printf("\n");
 }
 
- /**
-  * \brief Brise automobil na osnovu ID-a koji unese korisnik.
-  *
-  * Automobil se moze obrisati samo ako trenutno nije iznajmljen (provjera
-  * preko funkcije \ref jeAutomobilDostupan). Nakon brisanja, svi naredni
-  * elementi u nizu \ref automobili se pomjeraju za jedno mjesto ulijevo,
-  * a novo stanje se cuva pozivom funkcije \ref sacuvajAutomobile.
-  */
+/**
+ * \brief Brise automobil na osnovu ID-a koji unese korisnik.
+ *
+ * Funkcija cita ID, pronalazi automobil, a validaciju da li automobil
+ * smije biti obrisan prepusta \ref validirajBrisanjeAutomobila. Samo
+ * uklanjanje elementa iz niza obavlja \ref obrisiAutomobilNaIndeksu.
+ */
 void obrisiAutomobil(void)
 {
-    int id, indeks, i;
+    int id, indeks;
+    RentStatus status;
 
     printf("\n--- Brisanje automobila ---\n");
     printf("Unesite ID automobila koji zelite obrisati: ");
@@ -621,47 +1015,46 @@ void obrisiAutomobil(void)
 
     if (indeks == -1)
     {
-        printf("\nAutomobil sa ID %d ne postoji.\n\n", id);
+        printf("\n%s (ID %d)\n\n", opisStatusa(RENT_CAR_NOT_FOUND), id);
         return;
     }
 
-    if (!jeAutomobilDostupan(&automobili[indeks]))
+    status = validirajBrisanjeAutomobila(&automobili[indeks]);
+    if (status != RENT_OK)
     {
-        printf("\nAutomobil je trenutno iznajmljen i ne moze biti obrisan.\n\n");
+        printf("\n%s\n\n", opisStatusa(status));
         return;
     }
 
-    /* Pomjeri sve elemente iza obrisanog automobila za jedno mjesto ulijevo */
-    for (i = indeks; i < brojAutomobila - 1; i++)
-    {
-        automobili[i] = automobili[i + 1];
-    }
-    brojAutomobila--;
+    obrisiAutomobilNaIndeksu(automobili, &brojAutomobila, indeks);
 
     sacuvajAutomobile();
 
     printf("\nAutomobil je uspjesno obrisan.\n\n");
 }
 
- /**
-  * \brief Iznajmljuje odabrani automobil na osnovu podataka koje unese korisnik.
-  *
-  * Funkcija prvo prikazuje listu automobila, zatim trazi ID automobila,
-  * podatke o klijentu, datume i broj dana iznajmljivanja. Broj dana se
-  * validira preko funkcije \ref jeBrojDanaValidan, a ukupna cijena se
-  * racuna preko funkcije \ref izracunajUkupnuCijenu. Ako je automobil vec
-  * iznajmljen (provjera preko \ref jeAutomobilDostupan), iznajmljivanje se
-  * odbija. Nakon uspesnog iznajmljivanja, i lista automobila i lista
-  * iznajmljivanja se cuvaju u odgovarajuce fajlove.
-  */
+/**
+ * \brief Iznajmljuje odabrani automobil na osnovu podataka koje unese korisnik.
+ *
+ * Funkcija cita unos (ID automobila, podatke o klijentu, datume, broj dana)
+ * i prosledjuje ga funkciji \ref pripremiIznajmljivanje, koja obavlja svu
+ * validaciju, racunanje ukupne cijene i popunjavanje strukture. Ovdje
+ * ostaje samo provjera postojanja/dostupnosti automobila i I/O.
+ */
 void iznajmiAutomobil(void)
 {
     int id, indeks;
+    char ime[DUZINA_IMENA];
+    char prezime[DUZINA_IMENA];
+    char datumPocetka[DUZINA_DATUMA];
+    char datumKraja[DUZINA_DATUMA];
+    int brojDana;
     Iznajmljivanje novoIznajmljivanje;
+    RentStatus status;
 
     if (brojIznajmljivanja >= MAX_IZNAJMLJIVANJA)
     {
-        printf("\nDostignut je maksimalan broj iznajmljivanja.\n\n");
+        printf("\n%s\n\n", opisStatusa(RENT_LIMIT_REACHED));
         return;
     }
 
@@ -677,45 +1070,41 @@ void iznajmiAutomobil(void)
 
     if (indeks == -1)
     {
-        printf("\nAutomobil sa ID %d ne postoji.\n\n", id);
+        printf("\n%s (ID %d)\n\n", opisStatusa(RENT_CAR_NOT_FOUND), id);
         return;
     }
 
     if (!jeAutomobilDostupan(&automobili[indeks]))
     {
-        printf("\nAutomobil je vec iznajmljen.\n\n");
+        printf("\n%s\n\n", opisStatusa(RENT_CAR_NOT_AVAILABLE));
         return;
     }
 
-    novoIznajmljivanje.id = sledeciIdIznajmljivanja();
-    novoIznajmljivanje.id_automobila = id;
-
     printf("Ime klijenta: ");
-    scanf("%49s", novoIznajmljivanje.ime);
+    scanf("%49s", ime);
 
     printf("Prezime klijenta: ");
-    scanf("%49s", novoIznajmljivanje.prezime);
+    scanf("%49s", prezime);
 
     printf("Datum pocetka (DD-MM-GGGG): ");
-    scanf("%10s", novoIznajmljivanje.datum_pocetka);
+    scanf("%10s", datumPocetka);
 
     printf("Datum kraja (DD-MM-GGGG): ");
-    scanf("%10s", novoIznajmljivanje.datum_kraja);
+    scanf("%10s", datumKraja);
 
     printf("Broj dana iznajmljivanja: ");
-    scanf("%d", &novoIznajmljivanje.broj_dana);
+    scanf("%d", &brojDana);
 
     ocistiUlazniBafer();
 
-    if (!jeBrojDanaValidan(novoIznajmljivanje.broj_dana))
+    status = pripremiIznajmljivanje(&novoIznajmljivanje, sledeciIdIznajmljivanja(), id,
+        automobili[indeks].cijena_po_danu, ime, prezime, datumPocetka, datumKraja, brojDana);
+
+    if (status != RENT_OK)
     {
-        printf("\nBroj dana mora biti veci od nule. Iznajmljivanje otkazano.\n\n");
+        printf("\n%s Iznajmljivanje otkazano.\n\n", opisStatusa(status));
         return;
     }
-
-    novoIznajmljivanje.ukupna_cijena =
-        izracunajUkupnuCijenu(novoIznajmljivanje.broj_dana, automobili[indeks].cijena_po_danu);
-    novoIznajmljivanje.aktivno = 1;
 
     iznajmljivanja[brojIznajmljivanja] = novoIznajmljivanje;
     brojIznajmljivanja++;
@@ -730,18 +1119,19 @@ void iznajmiAutomobil(void)
     printf("Ukupna cijena: %.2f KM\n\n", novoIznajmljivanje.ukupna_cijena);
 }
 
- /**
-  *\brief Vraca iznajmljeni automobil na osnovu ID-a koji unese korisnik.
-  *
-  * Funkcija pronalazi aktivan zapis o iznajmljivanju za dati automobil
-  * (polje \e aktivno postavljeno na 1) i oznacava ga kao zavrsen. Status
-  * automobila se azurira na "dostupan" bez obzira na to da li je aktivan
-  * zapis pronadjen, uz odgovarajuce upozorenje ako zapis nije nadjen -
-  * ovo je zastitna mjera protiv nekonzistentnog stanja podataka.
-  */
+/**
+ *\brief Vraca iznajmljeni automobil na osnovu ID-a koji unese korisnik.
+ *
+ * Funkcija pronalazi automobil i (preko \ref pronadjiAktivnoIznajmljivanjeZaAuto)
+ * njegov aktivan zapis o iznajmljivanju, a svu logiku azuriranja statusa
+ * prepusta \ref obradiVracanjeAutomobila. Ovdje ostaje samo I/O i ispis
+ * odgovarajuce poruke na osnovu vracenog statusa.
+ */
 void vratiAutomobil(void)
 {
-    int idAuta, indeksAuta, i, pronadjeno;
+    int idAuta, indeksAuta, indeksIznajmljivanja;
+    Iznajmljivanje* iznajmljivanjePok;
+    RentStatus status;
 
     printf("\n--- Vracanje automobila ---\n");
     printf("Unesite ID automobila koji se vraca: ");
@@ -752,35 +1142,26 @@ void vratiAutomobil(void)
 
     if (indeksAuta == -1)
     {
-        printf("\nAutomobil sa ID %d ne postoji.\n\n", idAuta);
+        printf("\n%s (ID %d)\n\n", opisStatusa(RENT_CAR_NOT_FOUND), idAuta);
         return;
     }
 
-    if (jeAutomobilDostupan(&automobili[indeksAuta]))
+    indeksIznajmljivanja = pronadjiAktivnoIznajmljivanjeZaAuto(iznajmljivanja, brojIznajmljivanja, idAuta);
+    iznajmljivanjePok = (indeksIznajmljivanja != -1) ? &iznajmljivanja[indeksIznajmljivanja] : NULL;
+
+    status = obradiVracanjeAutomobila(&automobili[indeksAuta], iznajmljivanjePok);
+
+    if (status == RENT_CAR_ALREADY_AVAILABLE)
     {
-        printf("\nOvaj automobil trenutno nije iznajmljen.\n\n");
+        printf("\n%s\n\n", opisStatusa(status));
         return;
     }
 
-    /* Pronadji aktivan zapis iznajmljivanja za ovaj automobil */
-    pronadjeno = 0;
-    for (i = 0; i < brojIznajmljivanja; i++)
+    if (status == RENT_RENTAL_NOT_FOUND)
     {
-        if (iznajmljivanja[i].id_automobila == idAuta && iznajmljivanja[i].aktivno == 1)
-        {
-            iznajmljivanja[i].aktivno = 0;
-            pronadjeno = 1;
-            break;
-        }
-    }
-
-    if (!pronadjeno)
-    {
-        printf("\nUPOZORENJE: Nije pronadjen aktivan zapis iznajmljivanja za ovaj automobil.\n");
+        printf("\nUPOZORENJE: %s\n", opisStatusa(status));
         printf("Status automobila ce ipak biti azuriran na 'Dostupan'.\n\n");
     }
-
-    automobili[indeksAuta].dostupan = 1;
 
     sacuvajAutomobile();
     sacuvajIznajmljivanja();
@@ -788,12 +1169,12 @@ void vratiAutomobil(void)
     printf("\nAutomobil je uspjesno vracen.\n\n");
 }
 
- /**
-  * \brief Ispisuje tabelarni pregled svih zapisa o iznajmljivanju.
-  *
-  * Prikazuje i aktivna (automobil jos nije vracen) i zavrsena
-  * iznajmljivanja, sa naznakom statusa za svaki zapis.
-  */
+/**
+ * \brief Ispisuje tabelarni pregled svih zapisa o iznajmljivanju.
+ *
+ * Prikazuje i aktivna (automobil jos nije vracen) i zavrsena
+ * iznajmljivanja, sa naznakom statusa za svaki zapis.
+ */
 void prikaziIznajmljivanja(void)
 {
     int i;
