@@ -7,4 +7,5 @@
     <File Path=".gitignore" />
   </Folder>
   <Project Path="RentACar.vcxproj" Id="ff13f337-4c56-4cff-9461-a95330a17005" />
+  <Project Path="RentACarTests/RentACarTests.vcxproj" Id="47626382-9b65-4567-aca0-e5217d98508a" />
 </Solution>
