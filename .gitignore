@@ -10,3 +10,8 @@ Debug/
 Release/
 *.ilk
 *.pdb
+TestResults/
+*.coverage
+*.coveragexml
+packages/
+coverage.runsettings
