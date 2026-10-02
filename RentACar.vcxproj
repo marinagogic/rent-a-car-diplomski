@@ -20,10 +20,18 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.c" />
+    <ClCompile Include="rent_a_car_akcije.c" />
+    <ClCompile Include="rent_a_car_fajlovi.c" />
     <ClCompile Include="rent_a_car_logic.c" />
+    <ClCompile Include="rent_a_car_prikaz.c" />
+    <ClCompile Include="rent_a_car_stanje.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="rent_a_car_akcije.h" />
+    <ClInclude Include="rent_a_car_fajlovi.h" />
     <ClInclude Include="rent_a_car_logic.h" />
+    <ClInclude Include="rent_a_car_prikaz.h" />
+    <ClInclude Include="rent_a_car_stanje.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>18.0</VCProjectVersion>
