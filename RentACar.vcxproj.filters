@@ -21,9 +21,33 @@
     <ClCompile Include="rent_a_car_logic.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="rent_a_car_stanje.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rent_a_car_prikaz.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rent_a_car_fajlovi.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rent_a_car_akcije.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="rent_a_car_logic.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rent_a_car_stanje.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rent_a_car_prikaz.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rent_a_car_fajlovi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="rent_a_car_akcije.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
