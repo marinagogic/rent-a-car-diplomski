@@ -218,6 +218,10 @@ RentStatus validirajAutomobil(const Automobil* automobil)
  * \param [in]  godiste       Godiste automobila.
  * \param [in]  cijenaPoDanu  Cijena iznajmljivanja po danu.
  *
+ * Struktura \p noviAutomobil se mijenja samo ako su svi podaci validni.
+ * Ako validacija ne prodje (ili je neki pokazivac NULL), struktura ostaje
+ * nepromijenjena.
+ *
  * \return \ref RENT_NULL_POINTER ako je neki od pokazivaca NULL,
  *         \ref RENT_INVALID_YEAR / \ref RENT_INVALID_PRICE ako podaci nisu validni,
  *         inace \ref RENT_OK (automobil je popunjen i oznacen kao dostupan).
@@ -225,6 +229,7 @@ RentStatus validirajAutomobil(const Automobil* automobil)
 RentStatus kreirajAutomobil(Automobil* noviAutomobil, int id, const char* marka, const char* model,
     int godiste, float cijenaPoDanu)
 {
+    Automobil privremeni;
     RentStatus status;
 
     if (noviAutomobil == NULL || marka == NULL || model == NULL)
@@ -232,20 +237,28 @@ RentStatus kreirajAutomobil(Automobil* noviAutomobil, int id, const char* marka,
         return RENT_NULL_POINTER;
     }
 
-    noviAutomobil->id = id;
+    /* Podaci se prvo upisuju u privremenu strukturu, kako izlazna struktura
+       ne bi bila djelimicno popunjena ako validacija ne prodje. */
+    privremeni.id = id;
 
-    strncpy(noviAutomobil->marka, marka, DUZINA_STRINGA - 1);
-    noviAutomobil->marka[DUZINA_STRINGA - 1] = '\0';
+    strncpy(privremeni.marka, marka, DUZINA_STRINGA - 1);
+    privremeni.marka[DUZINA_STRINGA - 1] = '\0';
 
-    strncpy(noviAutomobil->model, model, DUZINA_STRINGA - 1);
-    noviAutomobil->model[DUZINA_STRINGA - 1] = '\0';
+    strncpy(privremeni.model, model, DUZINA_STRINGA - 1);
+    privremeni.model[DUZINA_STRINGA - 1] = '\0';
 
-    noviAutomobil->godiste = godiste;
-    noviAutomobil->cijena_po_danu = cijenaPoDanu;
-    noviAutomobil->dostupan = 1; /* novi automobil je odmah dostupan, ako prodje validaciju */
+    privremeni.godiste = godiste;
+    privremeni.cijena_po_danu = cijenaPoDanu;
+    privremeni.dostupan = 1; /* novi automobil je odmah dostupan */
 
-    status = validirajAutomobil(noviAutomobil);
-    return status;
+    status = validirajAutomobil(&privremeni);
+    if (status != RENT_OK)
+    {
+        return status;
+    }
+
+    *noviAutomobil = privremeni;
+    return RENT_OK;
 }
 
 /**

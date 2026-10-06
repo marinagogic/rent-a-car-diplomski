@@ -956,6 +956,156 @@ TEST(KreirajAutomobil, MarkaPrekoGraniceDuzineSeSkracuje)
     EXPECT_STREQ("ABCDEFGHIJABCDEFGHIJABCDEFGHI", a.marka);
 }
 
+/**
+ * \tracehead{KreirajAutomobil_TC_09, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "kreirajAutomobil" u slucaju kada model ima tacno DUZINA_STRINGA - 1 (29) karaktera, sto je najduzi string koji staje u polje bez skracivanja (analiza granicnih vrijednosti - na granici).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testni automobil "a" tipa Automobil.
+ * 2. Pozvati funkciju kreirajAutomobil sa sljedecim argumentima:
+ *  * noviAutomobil = adresa testnog automobila "a"
+ *  * id = 1
+ *  * marka = "Volkswagen"
+ *  * model = "ABCDEFGHIJABCDEFGHIJABCDEFGHI" (29 karaktera)
+ *  * godiste = 2020
+ *  * cijenaPoDanu = 45.0
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija kreirajAutomobil vraca RENT_OK.
+ * 2. Vrijednost a.model je jednaka "ABCDEFGHIJABCDEFGHIJABCDEFGHI" (model nije skracen).
+ * \endfield
+ */
+TEST(KreirajAutomobil, ModelNaGraniciDuzineSeNeSkracuje)
+{
+    Automobil a = {};
+    RentStatus status = kreirajAutomobil(&a, 1, "Volkswagen", "ABCDEFGHIJABCDEFGHIJABCDEFGHI", 2020, 45.0f);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("ABCDEFGHIJABCDEFGHIJABCDEFGHI", a.model);
+}
+
+/**
+ * \tracehead{KreirajAutomobil_TC_10, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "kreirajAutomobil" u slucaju kada model ima DUZINA_STRINGA (30) karaktera, sto je najkraci string koji mora biti skracen (analiza granicnih vrijednosti - prva vrijednost iznad granice).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testni automobil "a" tipa Automobil.
+ * 2. Pozvati funkciju kreirajAutomobil sa sljedecim argumentima:
+ *  * noviAutomobil = adresa testnog automobila "a"
+ *  * id = 1
+ *  * marka = "Volkswagen"
+ *  * model = "ABCDEFGHIJABCDEFGHIJABCDEFGHIJ" (30 karaktera)
+ *  * godiste = 2020
+ *  * cijenaPoDanu = 45.0
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija kreirajAutomobil vraca RENT_OK.
+ * 2. Vrijednost a.model je jednaka "ABCDEFGHIJABCDEFGHIJABCDEFGHI" (posljednji karakter je odsjecen, string je ispravno zavrsen znakom '\0').
+ * \endfield
+ */
+TEST(KreirajAutomobil, ModelPrekoGraniceDuzineSeSkracuje)
+{
+    Automobil a = {};
+    RentStatus status = kreirajAutomobil(&a, 1, "Volkswagen", "ABCDEFGHIJABCDEFGHIJABCDEFGHIJ", 2020, 45.0f);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("ABCDEFGHIJABCDEFGHIJABCDEFGHI", a.model);
+}
+
+/**
+ * \tracehead{KreirajAutomobil_TC_11, Funkcionalni test}
+ * Test provjerava da funkcija "kreirajAutomobil" ne mijenja izlaznu strukturu kada godiste nije validno (negativan test - stanje izlaznog parametra nakon greske).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testni automobil "a" tipa Automobil i popuniti ga postojecim podacima:
+ *  * id = 7, marka = "Staro", model = "Auto", godiste = 2000, cijena_po_danu = 10.0, dostupan = 0
+ * 2. Pozvati funkciju kreirajAutomobil sa sljedecim argumentima:
+ *  * noviAutomobil = adresa testnog automobila "a"
+ *  * id = 1
+ *  * marka = "Volkswagen"
+ *  * model = "Golf"
+ *  * godiste = 1800
+ *  * cijenaPoDanu = 45.0
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija kreirajAutomobil vraca RENT_INVALID_YEAR.
+ * 2. Struktura "a" je nepromijenjena (sva polja imaju vrijednosti iz koraka 1), tj. funkcija ne upisuje podatke prije uspjesne validacije.
+ * \endfield
+ */
+TEST(KreirajAutomobil, NevalidnoGodisteNeMijenjaStrukturu)
+{
+    Automobil a = {};
+    a.id = 7;
+    strcpy(a.marka, "Staro");
+    strcpy(a.model, "Auto");
+    a.godiste = 2000;
+    a.cijena_po_danu = 10.0f;
+    a.dostupan = 0;
+
+    RentStatus status = kreirajAutomobil(&a, 1, "Volkswagen", "Golf", 1800, 45.0f);
+
+    ASSERT_EQ(RENT_INVALID_YEAR, status);
+    EXPECT_EQ(7, a.id);
+    EXPECT_STREQ("Staro", a.marka);
+    EXPECT_STREQ("Auto", a.model);
+    EXPECT_EQ(2000, a.godiste);
+    EXPECT_FLOAT_EQ(10.0f, a.cijena_po_danu);
+    EXPECT_EQ(0, a.dostupan);
+}
+
+/**
+ * \tracehead{KreirajAutomobil_TC_12, Funkcionalni test}
+ * Test provjerava da funkcija "kreirajAutomobil" ne mijenja izlaznu strukturu kada cijena po danu nije validna (negativan test - stanje izlaznog parametra nakon greske).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testni automobil "a" tipa Automobil i popuniti ga postojecim podacima:
+ *  * id = 7, marka = "Staro", model = "Auto", godiste = 2000, cijena_po_danu = 10.0, dostupan = 0
+ * 2. Pozvati funkciju kreirajAutomobil sa sljedecim argumentima:
+ *  * noviAutomobil = adresa testnog automobila "a"
+ *  * id = 1
+ *  * marka = "Volkswagen"
+ *  * model = "Golf"
+ *  * godiste = 2020
+ *  * cijenaPoDanu = -5.0
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija kreirajAutomobil vraca RENT_INVALID_PRICE.
+ * 2. Struktura "a" je nepromijenjena (sva polja imaju vrijednosti iz koraka 1), tj. funkcija ne upisuje podatke prije uspjesne validacije.
+ * \endfield
+ */
+TEST(KreirajAutomobil, NevalidnaCijenaNeMijenjaStrukturu)
+{
+    Automobil a = {};
+    a.id = 7;
+    strcpy(a.marka, "Staro");
+    strcpy(a.model, "Auto");
+    a.godiste = 2000;
+    a.cijena_po_danu = 10.0f;
+    a.dostupan = 0;
+
+    RentStatus status = kreirajAutomobil(&a, 1, "Volkswagen", "Golf", 2020, -5.0f);
+
+    ASSERT_EQ(RENT_INVALID_PRICE, status);
+    EXPECT_EQ(7, a.id);
+    EXPECT_STREQ("Staro", a.marka);
+    EXPECT_STREQ("Auto", a.model);
+    EXPECT_EQ(2000, a.godiste);
+    EXPECT_FLOAT_EQ(10.0f, a.cijena_po_danu);
+    EXPECT_EQ(0, a.dostupan);
+}
+
 /* ======================= validirajBrisanjeAutomobila ======================= */
 
 /**
@@ -1637,6 +1787,286 @@ TEST(PripremiIznajmljivanje, PrekoracenBrojDanaVracaGresku)
     EXPECT_EQ(RENT_INVALID_DAYS, status);
 }
 
+/**
+ * \tracehead{PripremiIznajmljivanje_TC_11, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "pripremiIznajmljivanje" u slucaju kada ime ima tacno DUZINA_IMENA - 1 (49) karaktera, sto je najduzi string koji staje u polje bez skracivanja (analiza granicnih vrijednosti - na granici).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju pripremiIznajmljivanje sa sljedecim argumentima:
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ *  * id = 1
+ *  * idAutomobila = 5
+ *  * cijenaPoDanu = 50.0
+ *  * ime = "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI" (49 karaktera)
+ *  * prezime = "Markovic"
+ *  * datumPocetka = "01-01-2026"
+ *  * datumKraja = "05-01-2026"
+ *  * brojDana = 4
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija pripremiIznajmljivanje vraca RENT_OK.
+ * 2. Vrijednost r.ime je jednaka "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI" (ime nije skraceno).
+ * \endfield
+ */
+TEST(PripremiIznajmljivanje, ImeNaGraniciDuzineSeNeSkracuje)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = pripremiIznajmljivanje(&r, 1, 5, 50.0f,
+        "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI", "Markovic", "01-01-2026", "05-01-2026", 4);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI", r.ime);
+}
+
+/**
+ * \tracehead{PripremiIznajmljivanje_TC_12, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "pripremiIznajmljivanje" u slucaju kada ime ima DUZINA_IMENA (50) karaktera, sto je najkraci string koji mora biti skracen (analiza granicnih vrijednosti - prva vrijednost iznad granice).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju pripremiIznajmljivanje sa sljedecim argumentima:
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ *  * id = 1
+ *  * idAutomobila = 5
+ *  * cijenaPoDanu = 50.0
+ *  * ime = "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ" (50 karaktera)
+ *  * prezime = "Markovic"
+ *  * datumPocetka = "01-01-2026"
+ *  * datumKraja = "05-01-2026"
+ *  * brojDana = 4
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija pripremiIznajmljivanje vraca RENT_OK.
+ * 2. Vrijednost r.ime je jednaka "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI" (posljednji karakter je odsjecen, string je ispravno zavrsen znakom '\0').
+ * \endfield
+ */
+TEST(PripremiIznajmljivanje, ImePrekoGraniceDuzineSeSkracuje)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = pripremiIznajmljivanje(&r, 1, 5, 50.0f,
+        "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ", "Markovic", "01-01-2026", "05-01-2026", 4);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI", r.ime);
+}
+
+/**
+ * \tracehead{PripremiIznajmljivanje_TC_13, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "pripremiIznajmljivanje" u slucaju kada prezime ima tacno DUZINA_IMENA - 1 (49) karaktera, sto je najduzi string koji staje u polje bez skracivanja (analiza granicnih vrijednosti - na granici).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju pripremiIznajmljivanje sa sljedecim argumentima:
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ *  * id = 1
+ *  * idAutomobila = 5
+ *  * cijenaPoDanu = 50.0
+ *  * ime = "Marko"
+ *  * prezime = "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI" (49 karaktera)
+ *  * datumPocetka = "01-01-2026"
+ *  * datumKraja = "05-01-2026"
+ *  * brojDana = 4
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija pripremiIznajmljivanje vraca RENT_OK.
+ * 2. Vrijednost r.prezime je jednaka "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI" (prezime nije skracen).
+ * \endfield
+ */
+TEST(PripremiIznajmljivanje, PrezimeNaGraniciDuzineSeNeSkracuje)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = pripremiIznajmljivanje(&r, 1, 5, 50.0f,
+        "Marko", "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI", "01-01-2026", "05-01-2026", 4);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI", r.prezime);
+}
+
+/**
+ * \tracehead{PripremiIznajmljivanje_TC_14, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "pripremiIznajmljivanje" u slucaju kada prezime ima DUZINA_IMENA (50) karaktera, sto je najkraci string koji mora biti skracen (analiza granicnih vrijednosti - prva vrijednost iznad granice).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju pripremiIznajmljivanje sa sljedecim argumentima:
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ *  * id = 1
+ *  * idAutomobila = 5
+ *  * cijenaPoDanu = 50.0
+ *  * ime = "Marko"
+ *  * prezime = "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ" (50 karaktera)
+ *  * datumPocetka = "01-01-2026"
+ *  * datumKraja = "05-01-2026"
+ *  * brojDana = 4
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija pripremiIznajmljivanje vraca RENT_OK.
+ * 2. Vrijednost r.prezime je jednaka "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI" (posljednji karakter je odsjecen, string je ispravno zavrsen znakom '\0').
+ * \endfield
+ */
+TEST(PripremiIznajmljivanje, PrezimePrekoGraniceDuzineSeSkracuje)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = pripremiIznajmljivanje(&r, 1, 5, 50.0f,
+        "Marko", "ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJ", "01-01-2026", "05-01-2026", 4);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("ABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHIJABCDEFGHI", r.prezime);
+}
+
+/**
+ * \tracehead{PripremiIznajmljivanje_TC_15, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "pripremiIznajmljivanje" u slucaju kada datum pocetka ima tacno DUZINA_DATUMA - 1 (10) karaktera, sto je najduzi string koji staje u polje bez skracivanja (analiza granicnih vrijednosti - na granici).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju pripremiIznajmljivanje sa sljedecim argumentima:
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ *  * id = 1
+ *  * idAutomobila = 5
+ *  * cijenaPoDanu = 50.0
+ *  * ime = "Marko"
+ *  * prezime = "Markovic"
+ *  * datumPocetka = "01-01-2026" (10 karaktera)
+ *  * datumKraja = "05-01-2026"
+ *  * brojDana = 4
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija pripremiIznajmljivanje vraca RENT_OK.
+ * 2. Vrijednost r.datum_pocetka je jednaka "01-01-2026" (datum pocetka nije skracen).
+ * \endfield
+ */
+TEST(PripremiIznajmljivanje, DatumPocetkaNaGraniciDuzineSeNeSkracuje)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = pripremiIznajmljivanje(&r, 1, 5, 50.0f,
+        "Marko", "Markovic", "01-01-2026", "05-01-2026", 4);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("01-01-2026", r.datum_pocetka);
+}
+
+/**
+ * \tracehead{PripremiIznajmljivanje_TC_16, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "pripremiIznajmljivanje" u slucaju kada datum pocetka ima DUZINA_DATUMA (11) karaktera, sto je najkraci string koji mora biti skracen (analiza granicnih vrijednosti - prva vrijednost iznad granice).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju pripremiIznajmljivanje sa sljedecim argumentima:
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ *  * id = 1
+ *  * idAutomobila = 5
+ *  * cijenaPoDanu = 50.0
+ *  * ime = "Marko"
+ *  * prezime = "Markovic"
+ *  * datumPocetka = "01-01-20260" (11 karaktera)
+ *  * datumKraja = "05-01-2026"
+ *  * brojDana = 4
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija pripremiIznajmljivanje vraca RENT_OK.
+ * 2. Vrijednost r.datum_pocetka je jednaka "01-01-2026" (posljednji karakter je odsjecen, string je ispravno zavrsen znakom '\0').
+ * \endfield
+ */
+TEST(PripremiIznajmljivanje, DatumPocetkaPrekoGraniceDuzineSeSkracuje)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = pripremiIznajmljivanje(&r, 1, 5, 50.0f,
+        "Marko", "Markovic", "01-01-20260", "05-01-2026", 4);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("01-01-2026", r.datum_pocetka);
+}
+
+/**
+ * \tracehead{PripremiIznajmljivanje_TC_17, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "pripremiIznajmljivanje" u slucaju kada datum kraja ima tacno DUZINA_DATUMA - 1 (10) karaktera, sto je najduzi string koji staje u polje bez skracivanja (analiza granicnih vrijednosti - na granici).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju pripremiIznajmljivanje sa sljedecim argumentima:
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ *  * id = 1
+ *  * idAutomobila = 5
+ *  * cijenaPoDanu = 50.0
+ *  * ime = "Marko"
+ *  * prezime = "Markovic"
+ *  * datumPocetka = "01-01-2026"
+ *  * datumKraja = "05-01-2026" (10 karaktera)
+ *  * brojDana = 4
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija pripremiIznajmljivanje vraca RENT_OK.
+ * 2. Vrijednost r.datum_kraja je jednaka "05-01-2026" (datum kraja nije skracen).
+ * \endfield
+ */
+TEST(PripremiIznajmljivanje, DatumKrajaNaGraniciDuzineSeNeSkracuje)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = pripremiIznajmljivanje(&r, 1, 5, 50.0f,
+        "Marko", "Markovic", "01-01-2026", "05-01-2026", 4);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("05-01-2026", r.datum_kraja);
+}
+
+/**
+ * \tracehead{PripremiIznajmljivanje_TC_18, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "pripremiIznajmljivanje" u slucaju kada datum kraja ima DUZINA_DATUMA (11) karaktera, sto je najkraci string koji mora biti skracen (analiza granicnih vrijednosti - prva vrijednost iznad granice).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju pripremiIznajmljivanje sa sljedecim argumentima:
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ *  * id = 1
+ *  * idAutomobila = 5
+ *  * cijenaPoDanu = 50.0
+ *  * ime = "Marko"
+ *  * prezime = "Markovic"
+ *  * datumPocetka = "01-01-2026"
+ *  * datumKraja = "05-01-20260" (11 karaktera)
+ *  * brojDana = 4
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija pripremiIznajmljivanje vraca RENT_OK.
+ * 2. Vrijednost r.datum_kraja je jednaka "05-01-2026" (posljednji karakter je odsjecen, string je ispravno zavrsen znakom '\0').
+ * \endfield
+ */
+TEST(PripremiIznajmljivanje, DatumKrajaPrekoGraniceDuzineSeSkracuje)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = pripremiIznajmljivanje(&r, 1, 5, 50.0f,
+        "Marko", "Markovic", "01-01-2026", "05-01-20260", 4);
+
+    ASSERT_EQ(RENT_OK, status);
+    EXPECT_STREQ("05-01-2026", r.datum_kraja);
+}
+
 /* ======================= obradiVracanjeAutomobila ======================= */
 
 /**
@@ -2101,6 +2531,81 @@ TEST(ParsirajAutomobil, NenumerickoGodisteVracaParseError)
     EXPECT_EQ(RENT_PARSE_ERROR, status);
 }
 
+/**
+ * \tracehead{ParsirajAutomobil_TC_06, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "parsirajAutomobil" u slucaju kada numericko polje (id) sadrzi tekst umjesto broja (negativan test).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testni automobil "a" tipa Automobil.
+ * 2. Pozvati funkciju parsirajAutomobil sa sljedecim argumentima:
+ *  * linija = "abc;Volkswagen;Golf;2020;45.50;1\n"
+ *  * automobil = adresa testnog automobila "a"
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija parsirajAutomobil vraca RENT_PARSE_ERROR.
+ * \endfield
+ */
+TEST(ParsirajAutomobil, NenumerickiIdVracaParseError)
+{
+    Automobil a = {};
+    RentStatus status = parsirajAutomobil("abc;Volkswagen;Golf;2020;45.50;1\n", &a);
+
+    EXPECT_EQ(RENT_PARSE_ERROR, status);
+}
+
+/**
+ * \tracehead{ParsirajAutomobil_TC_07, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "parsirajAutomobil" u slucaju kada numericko polje (cijena po danu) sadrzi tekst umjesto broja (negativan test).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testni automobil "a" tipa Automobil.
+ * 2. Pozvati funkciju parsirajAutomobil sa sljedecim argumentima:
+ *  * linija = "1;Volkswagen;Golf;2020;abc;1\n"
+ *  * automobil = adresa testnog automobila "a"
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija parsirajAutomobil vraca RENT_PARSE_ERROR.
+ * \endfield
+ */
+TEST(ParsirajAutomobil, NenumerickaCijenaVracaParseError)
+{
+    Automobil a = {};
+    RentStatus status = parsirajAutomobil("1;Volkswagen;Golf;2020;abc;1\n", &a);
+
+    EXPECT_EQ(RENT_PARSE_ERROR, status);
+}
+
+/**
+ * \tracehead{ParsirajAutomobil_TC_08, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "parsirajAutomobil" u slucaju kada numericko polje (dostupan) sadrzi tekst umjesto broja (negativan test).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testni automobil "a" tipa Automobil.
+ * 2. Pozvati funkciju parsirajAutomobil sa sljedecim argumentima:
+ *  * linija = "1;Volkswagen;Golf;2020;45.50;abc\n"
+ *  * automobil = adresa testnog automobila "a"
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija parsirajAutomobil vraca RENT_PARSE_ERROR.
+ * \endfield
+ */
+TEST(ParsirajAutomobil, NenumerickoPoljeDostupanVracaParseError)
+{
+    Automobil a = {};
+    RentStatus status = parsirajAutomobil("1;Volkswagen;Golf;2020;45.50;abc\n", &a);
+
+    EXPECT_EQ(RENT_PARSE_ERROR, status);
+}
+
 /* ======================= parsirajIznajmljivanje ======================= */
 
 /**
@@ -2265,6 +2770,106 @@ TEST(ParsirajIznajmljivanje, NenumerickiBrojDanaVracaParseError)
     Iznajmljivanje r = {};
     RentStatus status = parsirajIznajmljivanje(
         "1;3;Marina;Gogic;27-07-2026;28-07-2026;abc;90.00;1\n", &r);
+
+    EXPECT_EQ(RENT_PARSE_ERROR, status);
+}
+
+/**
+ * \tracehead{ParsirajIznajmljivanje_TC_06, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "parsirajIznajmljivanje" u slucaju kada numericko polje (id) sadrzi tekst umjesto broja (negativan test).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju parsirajIznajmljivanje sa sljedecim argumentima:
+ *  * linija = "abc;3;Marina;Gogic;27-07-2026;28-07-2026;1;90.00;1\n"
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija parsirajIznajmljivanje vraca RENT_PARSE_ERROR.
+ * \endfield
+ */
+TEST(ParsirajIznajmljivanje, NenumerickiIdVracaParseError)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = parsirajIznajmljivanje("abc;3;Marina;Gogic;27-07-2026;28-07-2026;1;90.00;1\n", &r);
+
+    EXPECT_EQ(RENT_PARSE_ERROR, status);
+}
+
+/**
+ * \tracehead{ParsirajIznajmljivanje_TC_07, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "parsirajIznajmljivanje" u slucaju kada numericko polje (ID automobila) sadrzi tekst umjesto broja (negativan test).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju parsirajIznajmljivanje sa sljedecim argumentima:
+ *  * linija = "1;abc;Marina;Gogic;27-07-2026;28-07-2026;1;90.00;1\n"
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija parsirajIznajmljivanje vraca RENT_PARSE_ERROR.
+ * \endfield
+ */
+TEST(ParsirajIznajmljivanje, NenumerickiIdAutomobilaVracaParseError)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = parsirajIznajmljivanje("1;abc;Marina;Gogic;27-07-2026;28-07-2026;1;90.00;1\n", &r);
+
+    EXPECT_EQ(RENT_PARSE_ERROR, status);
+}
+
+/**
+ * \tracehead{ParsirajIznajmljivanje_TC_08, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "parsirajIznajmljivanje" u slucaju kada numericko polje (ukupna cijena) sadrzi tekst umjesto broja (negativan test).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju parsirajIznajmljivanje sa sljedecim argumentima:
+ *  * linija = "1;3;Marina;Gogic;27-07-2026;28-07-2026;1;abc;1\n"
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija parsirajIznajmljivanje vraca RENT_PARSE_ERROR.
+ * \endfield
+ */
+TEST(ParsirajIznajmljivanje, NenumerickaUkupnaCijenaVracaParseError)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = parsirajIznajmljivanje("1;3;Marina;Gogic;27-07-2026;28-07-2026;1;abc;1\n", &r);
+
+    EXPECT_EQ(RENT_PARSE_ERROR, status);
+}
+
+/**
+ * \tracehead{ParsirajIznajmljivanje_TC_09, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "parsirajIznajmljivanje" u slucaju kada numericko polje (aktivno) sadrzi tekst umjesto broja (negativan test).
+ *
+ * \field{Specifikacija testa}
+ * 1. Definisati testno iznajmljivanje "r" tipa Iznajmljivanje.
+ * 2. Pozvati funkciju parsirajIznajmljivanje sa sljedecim argumentima:
+ *  * linija = "1;3;Marina;Gogic;27-07-2026;28-07-2026;1;90.00;abc\n"
+ *  * iznajmljivanje = adresa testnog iznajmljivanja "r"
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Funkcija parsirajIznajmljivanje vraca RENT_PARSE_ERROR.
+ * \endfield
+ */
+TEST(ParsirajIznajmljivanje, NenumerickoPoljeAktivnoVracaParseError)
+{
+    Iznajmljivanje r = {};
+    RentStatus status = parsirajIznajmljivanje("1;3;Marina;Gogic;27-07-2026;28-07-2026;1;90.00;abc\n", &r);
 
     EXPECT_EQ(RENT_PARSE_ERROR, status);
 }
