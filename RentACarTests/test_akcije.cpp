@@ -363,6 +363,87 @@ TEST_F(Akcije, DodajAutomobil_MaksimalanBrojAutomobila)
     EXPECT_EQ(std::string::npos, ispis.find("Marka:"));
 }
 
+/**
+ * \tracehead{DodajAutomobil_TC_07, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "dodajAutomobil" u slucaju kada je u nizu ostalo tacno jedno slobodno mjesto (analiza granicnih vrijednosti - MAX_AUTOMOBILA - 1, posljednja validna vrijednost).
+ *
+ * \field{Specifikacija testa}
+ * 1. Postaviti globalno stanje:
+ *  * brojAutomobila = MAX_AUTOMOBILA - 1 (99), automobili sa id = 1 .. 99
+ * 2. Simulirati unos korisnika:
+ *  * marka = "Volkswagen", model = "Golf", godiste = 2020, cijena = 45
+ * 3. Pozvati funkciju dodajAutomobil i uhvatiti ispis.
+ * 4. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Vrijednost brojAutomobila je jednaka MAX_AUTOMOBILA (automobil je dodat na posljednje slobodno mjesto).
+ * 2. Novi automobil ima id = 100.
+ * 3. Ispisana je poruka "Automobil je uspjesno dodat! (ID: 100)".
+ * 4. Posljednja linija fajla automobila je "100;Volkswagen;Golf;2020;45.00;1".
+ * \endfield
+ */
+TEST_F(Akcije, DodajAutomobil_JednoSlobodnoMjestoDodaje)
+{
+    for (int i = 1; i < MAX_AUTOMOBILA; i++)
+    {
+        dodajAuto(i, "Fiat", "Punto", 2015, 30.0f, 1);
+    }
+    ASSERT_EQ(MAX_AUTOMOBILA - 1, brojAutomobila);
+
+    std::string ispis = izvrsi("Volkswagen\nGolf\n2020\n45\n", dodaj);
+
+    ASSERT_EQ(MAX_AUTOMOBILA, brojAutomobila);
+    EXPECT_EQ(MAX_AUTOMOBILA, automobili[MAX_AUTOMOBILA - 1].id);
+    EXPECT_STREQ("Volkswagen", automobili[MAX_AUTOMOBILA - 1].marka);
+    EXPECT_TRUE(Sadrzi(ispis, "Automobil je uspjesno dodat! (ID: 100)"));
+
+    const std::string sadrzaj = procitajFajl(TEST_AUTOMOBILI);
+    const std::string posljednjaLinija = "100;Volkswagen;Golf;2020;45.00;1\n";
+    ASSERT_GE(sadrzaj.size(), posljednjaLinija.size());
+    EXPECT_EQ(posljednjaLinija, sadrzaj.substr(sadrzaj.size() - posljednjaLinija.size()));
+}
+
+/**
+ * \tracehead{DodajAutomobil_TC_08, Funkcionalni test}
+ * Test provjerava da funkcija "dodajAutomobil" predugacku marku i model skracuje na najveci dozvoljeni broj znakova (DUZINA_STRINGA - 1 = 29), da ostali podaci ostaju ispravni i da se skraceni podaci ispravno upisuju u fajl (analiza granicnih vrijednosti - unos duzi od dozvoljenog).
+ *
+ * \field{Specifikacija testa}
+ * 1. Simulirati unos korisnika:
+ *  * marka = 35 znakova ("ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "123456789")
+ *  * model = 35 znakova ("abcdefghijklmnopqrstuvwxyz" + "123456789")
+ *  * godiste = 2020, cijena = 45.5
+ * 2. Pozvati funkciju dodajAutomobil i uhvatiti ispis.
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Automobil je dodat (brojAutomobila = 1).
+ * 2. Marka i model sadrze samo prvih 29 znakova unosa.
+ * 3. Godiste je 2020 i cijena 45.5 (visak marke i modela nije procitan kao vrijednost sljedeceg polja).
+ * 4. Fajl automobila sadrzi liniju sa skracenom markom i modelom i ispravnim ostalim podacima.
+ * \endfield
+ */
+TEST_F(Akcije, DodajAutomobil_PredugackiPodaciSeSkracujuUFajlu)
+{
+    std::string ispis = izvrsi(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789\n"
+        "abcdefghijklmnopqrstuvwxyz123456789\n"
+        "2020\n"
+        "45.5\n", dodaj);
+
+    ASSERT_EQ(1, brojAutomobila);
+    EXPECT_STREQ("ABCDEFGHIJKLMNOPQRSTUVWXYZ123", automobili[0].marka);
+    EXPECT_STREQ("abcdefghijklmnopqrstuvwxyz123", automobili[0].model);
+    EXPECT_EQ(2020, automobili[0].godiste);
+    EXPECT_FLOAT_EQ(45.5f, automobili[0].cijena_po_danu);
+    EXPECT_TRUE(Sadrzi(ispis, "Automobil je uspjesno dodat! (ID: 1)"));
+    EXPECT_EQ("1;ABCDEFGHIJKLMNOPQRSTUVWXYZ123;abcdefghijklmnopqrstuvwxyz123;2020;45.50;1\n",
+        procitajFajl(TEST_AUTOMOBILI));
+}
+
 /* ======================= obrisiAutomobil ======================= */
 
 /**
@@ -629,6 +710,39 @@ TEST_F(Akcije, IznajmiAutomobil_NevalidanBrojDanaOtkazuje)
 }
 
 /**
+ * \tracehead{IznajmiAutomobil_TC_07, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "iznajmiAutomobil" u slucaju kada je unesen broj dana veci od dozvoljenog (analiza granicnih vrijednosti - broj dana = 366, prva nevalidna vrijednost iznad opsega).
+ *
+ * \field{Specifikacija testa}
+ * 1. Postaviti globalno stanje sa 1 dostupnim automobilom (id = 1).
+ * 2. Simulirati unos korisnika:
+ *  * ID = 1, ime = "Marina", prezime = "Gogic", pocetak = "01-01-2026", kraj = "02-01-2027", broj dana = 366
+ * 3. Pozvati funkciju iznajmiAutomobil i uhvatiti ispis.
+ * 4. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Vrijednost brojIznajmljivanja ostaje 0.
+ * 2. Automobil ostaje dostupan (dostupan = 1).
+ * 3. Ispisana je poruka "Broj dana mora biti u opsegu 1-365. Iznajmljivanje otkazano.".
+ * 4. Nijedan fajl nije napravljen.
+ * \endfield
+ */
+TEST_F(Akcije, IznajmiAutomobil_PrekoracenBrojDanaOtkazuje)
+{
+    dodajAuto(1, "Volkswagen", "Golf", 2020, 45.0f, 1);
+
+    std::string ispis = izvrsi("1\nMarina\nGogic\n01-01-2026\n02-01-2027\n366\n", iznajmi);
+
+    EXPECT_EQ(0, brojIznajmljivanja);
+    EXPECT_EQ(1, automobili[0].dostupan);
+    EXPECT_TRUE(Sadrzi(ispis, "Broj dana mora biti u opsegu 1-365. Iznajmljivanje otkazano."));
+    EXPECT_FALSE(postojiFajl(TEST_IZNAJMLJIVANJA));
+    EXPECT_FALSE(postojiFajl(TEST_AUTOMOBILI));
+}
+
+/**
  * \tracehead{IznajmiAutomobil_TC_05, Funkcionalni test}
  * Test provjerava ispravno ponasanje funkcije "iznajmiAutomobil" u slucaju kada je dostignut maksimalan broj zapisa o iznajmljivanju (analiza granicnih vrijednosti - MAX_IZNAJMLJIVANJA).
  *
@@ -658,6 +772,96 @@ TEST_F(Akcije, IznajmiAutomobil_MaksimalanBrojZapisa)
     EXPECT_EQ(MAX_IZNAJMLJIVANJA, brojIznajmljivanja);
     EXPECT_EQ(1, automobili[0].dostupan);
     EXPECT_TRUE(Sadrzi(ispis, "Dostignut je maksimalan dozvoljeni broj zapisa."));
+}
+
+/**
+ * \tracehead{IznajmiAutomobil_TC_08, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "iznajmiAutomobil" u slucaju kada je u nizu zapisa ostalo tacno jedno slobodno mjesto (analiza granicnih vrijednosti - MAX_IZNAJMLJIVANJA - 1, posljednja validna vrijednost).
+ *
+ * \field{Specifikacija testa}
+ * 1. Postaviti globalno stanje:
+ *  * 1 dostupan automobil (id = 1)
+ *  * brojIznajmljivanja = MAX_IZNAJMLJIVANJA - 1 (199), zavrseni zapisi sa id = 1 .. 199
+ * 2. Simulirati unos korisnika:
+ *  * ID = 1, ime = "Marina", prezime = "Gogic", pocetak = "27-07-2026", kraj = "28-07-2026", broj dana = 1
+ * 3. Pozvati funkciju iznajmiAutomobil i uhvatiti ispis.
+ * 4. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Vrijednost brojIznajmljivanja je jednaka MAX_IZNAJMLJIVANJA (zapis je dodat na posljednje slobodno mjesto).
+ * 2. Novi zapis ima id = 200 i aktivno = 1.
+ * 3. Automobil je oznacen kao iznajmljen (dostupan = 0).
+ * 4. Ispisana je poruka "Automobil je uspjesno iznajmljen!".
+ * \endfield
+ */
+TEST_F(Akcije, IznajmiAutomobil_JednoSlobodnoMjestoIznajmljuje)
+{
+    dodajAuto(1, "Volkswagen", "Golf", 2020, 45.0f, 1);
+    for (int i = 1; i < MAX_IZNAJMLJIVANJA; i++)
+    {
+        dodajIznajmljivanje(i, 1, 0);
+    }
+    ASSERT_EQ(MAX_IZNAJMLJIVANJA - 1, brojIznajmljivanja);
+
+    std::string ispis = izvrsi("1\nMarina\nGogic\n27-07-2026\n28-07-2026\n1\n", iznajmi);
+
+    ASSERT_EQ(MAX_IZNAJMLJIVANJA, brojIznajmljivanja);
+    EXPECT_EQ(MAX_IZNAJMLJIVANJA, iznajmljivanja[MAX_IZNAJMLJIVANJA - 1].id);
+    EXPECT_EQ(1, iznajmljivanja[MAX_IZNAJMLJIVANJA - 1].aktivno);
+    EXPECT_EQ(0, automobili[0].dostupan);
+    EXPECT_TRUE(Sadrzi(ispis, "Automobil je uspjesno iznajmljen!"));
+}
+
+/**
+ * \tracehead{IznajmiAutomobil_TC_09, Funkcionalni test}
+ * Test provjerava da funkcija "iznajmiAutomobil" predugacko ime, prezime i datume skracuje na najveci dozvoljeni broj znakova (ime i prezime: DUZINA_IMENA - 1 = 49, datum: DUZINA_DATUMA - 1 = 10), da ostali podaci ostaju ispravni i da se skraceni podaci ispravno upisuju u fajl (analiza granicnih vrijednosti - unos duzi od dozvoljenog).
+ *
+ * \field{Specifikacija testa}
+ * 1. Postaviti globalno stanje sa 1 dostupnim automobilom (id = 1, cijena_po_danu = 45.0).
+ * 2. Simulirati unos korisnika:
+ *  * ID = 1
+ *  * ime = 60 znakova (49 x "A" + "VISAKIMENAX")
+ *  * prezime = 60 znakova (49 x "B" + "VISAKPREZXY")
+ *  * pocetak = "27-07-2026XY", kraj = "30-07-2026XY" (po 12 znakova)
+ *  * broj dana = 3
+ * 3. Pozvati funkciju iznajmiAutomobil i uhvatiti ispis.
+ * 4. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Zapis je dodat (brojIznajmljivanja = 1).
+ * 2. Ime i prezime sadrze samo prvih 49 znakova, a datumi samo prvih 10 znakova unosa.
+ * 3. Broj dana je 3 i ukupna cijena 135.0 (visak nije procitan kao vrijednost sljedeceg polja).
+ * 4. Fajl iznajmljivanja sadrzi liniju sa skracenim podacima i ispravnim brojem dana i cijenom.
+ * \endfield
+ */
+TEST_F(Akcije, IznajmiAutomobil_PredugackiPodaciSeSkracujuUFajlu)
+{
+    const std::string ime49(49, 'A');
+    const std::string prezime49(49, 'B');
+    dodajAuto(1, "Volkswagen", "Golf", 2020, 45.0f, 1);
+
+    std::string ispis = izvrsi(
+        "1\n" +
+        ime49 + "VISAKIMENAX\n" +
+        prezime49 + "VISAKPREZXY\n" +
+        "27-07-2026XY\n"
+        "30-07-2026XY\n"
+        "3\n", iznajmi);
+
+    ASSERT_EQ(1, brojIznajmljivanja);
+    EXPECT_EQ(ime49, iznajmljivanja[0].ime);
+    EXPECT_EQ(prezime49, iznajmljivanja[0].prezime);
+    EXPECT_STREQ("27-07-2026", iznajmljivanja[0].datum_pocetka);
+    EXPECT_STREQ("30-07-2026", iznajmljivanja[0].datum_kraja);
+    EXPECT_EQ(3, iznajmljivanja[0].broj_dana);
+    EXPECT_FLOAT_EQ(135.0f, iznajmljivanja[0].ukupna_cijena);
+    EXPECT_TRUE(Sadrzi(ispis, "Ukupna cijena: 135.00 KM"));
+    EXPECT_EQ("1;1;" + ime49 + ";" + prezime49 + ";27-07-2026;30-07-2026;3;135.00;1\n",
+        procitajFajl(TEST_IZNAJMLJIVANJA));
 }
 
 /* ======================= vratiAutomobil ======================= */

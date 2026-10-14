@@ -16,13 +16,13 @@
 #include "rent_a_car_fajlovi.h"
 #include "rent_a_car_akcije.h"
 
-/**
- * \brief Prazni ulazni bafer nakon poziva funkcije scanf.
- *
- * Cita i odbacuje sve karaktere iz standardnog ulaza sve dok ne naidje na
- * znak novog reda ili kraj ulaza. Poziva se nakon svakog scanf poziva kako
- * bi naredni unos korisnika bio ispravno procitan.
- */
+ /**
+  * \brief Prazni ulazni bafer nakon poziva funkcije scanf.
+  *
+  * Cita i odbacuje sve karaktere iz standardnog ulaza sve dok ne naidje na
+  * znak novog reda ili kraj ulaza. Poziva se nakon svakog scanf poziva kako
+  * bi naredni unos korisnika bio ispravno procitan.
+  */
 void ocistiUlazniBafer(void)
 {
     int c;
@@ -42,6 +42,11 @@ void ocistiUlazniBafer(void)
  * Povratna vrijednost svakog poziva scanf se provjerava. Ako unos nije
  * validan (npr. slova umjesto broja) ili je dostignut kraj ulaza, ispisuje
  * se poruka, preostali unos se odbacuje i funkcija se zavrsava bez izmjena.
+ *
+ * Nakon svakog uspjesno procitanog podatka ostatak reda se odbacuje
+ * (\ref ocistiUlazniBafer). Zato se predugacak unos skracuje na najveci
+ * dozvoljeni broj znakova, umjesto da visak bude procitan kao vrijednost
+ * sljedeceg polja.
  *
  * \param [in] fajlAutomobila Putanja do fajla u koji se cuvaju automobili.
  */
@@ -69,6 +74,7 @@ void dodajAutomobil(const char* fajlAutomobila)
         ocistiUlazniBafer();
         return;
     }
+    ocistiUlazniBafer();
 
     printf("Model: ");
     if (scanf("%29s", model) != 1)
@@ -77,6 +83,7 @@ void dodajAutomobil(const char* fajlAutomobila)
         ocistiUlazniBafer();
         return;
     }
+    ocistiUlazniBafer();
 
     printf("Godiste: ");
     if (scanf("%d", &godiste) != 1)
@@ -85,6 +92,7 @@ void dodajAutomobil(const char* fajlAutomobila)
         ocistiUlazniBafer();
         return;
     }
+    ocistiUlazniBafer();
 
     printf("Cijena po danu (KM): ");
     if (scanf("%f", &cijenaPoDanu) != 1)
@@ -174,6 +182,11 @@ void obrisiAutomobil(const char* fajlAutomobila)
  * validan (npr. slova umjesto broja) ili je dostignut kraj ulaza, ispisuje
  * se poruka, preostali unos se odbacuje i funkcija se zavrsava bez izmjena.
  *
+ * Nakon svakog uspjesno procitanog podatka ostatak reda se odbacuje
+ * (\ref ocistiUlazniBafer). Zato se predugacak unos skracuje na najveci
+ * dozvoljeni broj znakova, umjesto da visak bude procitan kao vrijednost
+ * sljedeceg polja.
+ *
  * \param [in] fajlAutomobila Putanja do fajla u koji se cuvaju automobili.
  * \param [in] fajlIznajmljivanja Putanja do fajla u koji se cuvaju iznajmljivanja.
  */
@@ -228,6 +241,7 @@ void iznajmiAutomobil(const char* fajlAutomobila, const char* fajlIznajmljivanja
         ocistiUlazniBafer();
         return;
     }
+    ocistiUlazniBafer();
 
     printf("Prezime klijenta: ");
     if (scanf("%49s", prezime) != 1)
@@ -236,6 +250,7 @@ void iznajmiAutomobil(const char* fajlAutomobila, const char* fajlIznajmljivanja
         ocistiUlazniBafer();
         return;
     }
+    ocistiUlazniBafer();
 
     printf("Datum pocetka (DD-MM-GGGG): ");
     if (scanf("%10s", datumPocetka) != 1)
@@ -244,6 +259,7 @@ void iznajmiAutomobil(const char* fajlAutomobila, const char* fajlIznajmljivanja
         ocistiUlazniBafer();
         return;
     }
+    ocistiUlazniBafer();
 
     printf("Datum kraja (DD-MM-GGGG): ");
     if (scanf("%10s", datumKraja) != 1)
@@ -252,6 +268,7 @@ void iznajmiAutomobil(const char* fajlAutomobila, const char* fajlIznajmljivanja
         ocistiUlazniBafer();
         return;
     }
+    ocistiUlazniBafer();
 
     printf("Broj dana iznajmljivanja: ");
     if (scanf("%d", &brojDana) != 1)
