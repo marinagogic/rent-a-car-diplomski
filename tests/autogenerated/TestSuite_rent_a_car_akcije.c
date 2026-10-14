@@ -90,6 +90,11 @@ CPPTEST_TEST_SUITE(TestSuite_rent_a_car_akcije_gtest);
         CPPTEST_TEST(TestSuite_rent_a_car_akcije_gtest_OcistiUlazniBafer_ZaustavljaSeNaKrajuUlaza);
         CPPTEST_TEST(TestSuite_rent_a_car_akcije_gtest_ObrisiAutomobil_NenumerickiIdNeBrise);
         CPPTEST_TEST(TestSuite_rent_a_car_akcije_gtest_VratiAutomobil_NenumerickiIdNeVraca);
+        CPPTEST_TEST(TestSuite_rent_a_car_akcije_gtest_DodajAutomobil_JednoSlobodnoMjestoDodaje);
+        CPPTEST_TEST(TestSuite_rent_a_car_akcije_gtest_DodajAutomobil_PredugackiPodaciSeSkracujuUFajlu);
+        CPPTEST_TEST(TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_PrekoracenBrojDanaOtkazuje);
+        CPPTEST_TEST(TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_JednoSlobodnoMjestoIznajmljuje);
+        CPPTEST_TEST(TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_PredugackiPodaciSeSkracujuUFajlu);
         CPPTEST_TEST_DS(TestSuite_rent_a_car_akcije_gtest_DodajAutomobil_NevalidanUnosNeDodaje, CPPTEST_DS_ARRAY(DS_DODAJ_NEVALIDAN_UNOS, 5, 1));
         CPPTEST_TEST_DS(TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_NevalidanUnosOtkazuje, CPPTEST_DS_ARRAY(DS_IZNAJMI_NEVALIDAN_UNOS, 7, 1));
         CPPTEST_TEST_SUITE_TEARDOWN(TestSuite_rent_a_car_akcije_gtest_testSuiteTearDown);
@@ -119,6 +124,11 @@ void TestSuite_rent_a_car_akcije_gtest_OcistiUlazniBafer_OdbacujeOstatakReda(voi
 void TestSuite_rent_a_car_akcije_gtest_OcistiUlazniBafer_ZaustavljaSeNaKrajuUlaza(void);
 void TestSuite_rent_a_car_akcije_gtest_ObrisiAutomobil_NenumerickiIdNeBrise(void);
 void TestSuite_rent_a_car_akcije_gtest_VratiAutomobil_NenumerickiIdNeVraca(void);
+void TestSuite_rent_a_car_akcije_gtest_DodajAutomobil_JednoSlobodnoMjestoDodaje(void);
+void TestSuite_rent_a_car_akcije_gtest_DodajAutomobil_PredugackiPodaciSeSkracujuUFajlu(void);
+void TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_PrekoracenBrojDanaOtkazuje(void);
+void TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_JednoSlobodnoMjestoIznajmljuje(void);
+void TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_PredugackiPodaciSeSkracujuUFajlu(void);
 void TestSuite_rent_a_car_akcije_gtest_DodajAutomobil_NevalidanUnosNeDodaje(void);
 void TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_NevalidanUnosOtkazuje(void);
 
@@ -1199,3 +1209,237 @@ void TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_NevalidanUnosOtkazuje(vo
     CPPTEST_ASSERT(!(postojiFajl(TEST_AUTOMOBILI)));
 }
 /* CPPTEST_TEST_CASE_END IznajmiAutomobil_NevalidanUnosOtkazuje */
+
+/* CPPTEST_TEST_CASE_BEGIN DodajAutomobil_JednoSlobodnoMjestoDodaje */
+/**
+ * \tracehead{DodajAutomobil_TC_07, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "dodajAutomobil" u slucaju kada je u nizu ostalo tacno jedno slobodno mjesto (analiza granicnih vrijednosti - MAX_AUTOMOBILA - 1, posljednja validna vrijednost).
+ *
+ * \field{Specifikacija testa}
+ * 1. Postaviti globalno stanje:
+ *  * brojAutomobila = MAX_AUTOMOBILA - 1 (99), automobili sa id = 1 .. 99
+ * 2. Simulirati unos korisnika:
+ *  * marka = "Volkswagen", model = "Golf", godiste = 2020, cijena = 45
+ * 3. Pozvati funkciju dodajAutomobil i uhvatiti ispis.
+ * 4. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Vrijednost brojAutomobila je jednaka MAX_AUTOMOBILA (automobil je dodat na posljednje slobodno mjesto).
+ * 2. Novi automobil ima id = 100.
+ * 3. Ispisana je poruka "Automobil je uspjesno dodat! (ID: 100)".
+ * 4. Posljednja linija fajla automobila je "100;Volkswagen;Golf;2020;45.00;1".
+ * \endfield
+ */
+void TestSuite_rent_a_car_akcije_gtest_DodajAutomobil_JednoSlobodnoMjestoDodaje(void)
+{
+    const char* ispis;
+    const char* sadrzaj;
+    const char* posljednjaLinija = "100;Volkswagen;Golf;2020;45.00;1\n";
+    size_t duzinaSadrzaja;
+    size_t duzinaLinije = strlen(posljednjaLinija);
+    int i;
+
+    for (i = 1; i < MAX_AUTOMOBILA; i++)
+    {
+        dodajAuto(i, "Fiat", "Punto", 2015, 30.0f, 1);
+    }
+    CPPTEST_ASSERT_INTEGER_EQUAL(MAX_AUTOMOBILA - 1, brojAutomobila);
+
+    ispis = izvrsi("Volkswagen\nGolf\n2020\n45\n", dodaj);
+
+    CPPTEST_ASSERT_INTEGER_EQUAL(MAX_AUTOMOBILA, brojAutomobila);
+    CPPTEST_ASSERT_INTEGER_EQUAL(MAX_AUTOMOBILA, automobili[MAX_AUTOMOBILA - 1].id);
+    CPPTEST_ASSERT_CSTR_EQUAL("Volkswagen", automobili[MAX_AUTOMOBILA - 1].marka);
+    CPPTEST_ASSERT_MESSAGE("Ispis treba da sadrzi: Automobil je uspjesno dodat! (ID: 100)", sadrzi(ispis, "Automobil je uspjesno dodat! (ID: 100)"));
+
+    sadrzaj = procitajFajl(TEST_AUTOMOBILI);
+    duzinaSadrzaja = strlen(sadrzaj);
+    CPPTEST_ASSERT(duzinaSadrzaja >= duzinaLinije);
+    CPPTEST_ASSERT_CSTR_EQUAL(posljednjaLinija, sadrzaj + duzinaSadrzaja - duzinaLinije);
+}
+/* CPPTEST_TEST_CASE_END DodajAutomobil_JednoSlobodnoMjestoDodaje */
+
+/* CPPTEST_TEST_CASE_BEGIN DodajAutomobil_PredugackiPodaciSeSkracujuUFajlu */
+/**
+ * \tracehead{DodajAutomobil_TC_08, Funkcionalni test}
+ * Test provjerava da funkcija "dodajAutomobil" predugacku marku i model skracuje na najveci dozvoljeni broj znakova (DUZINA_STRINGA - 1 = 29), da ostali podaci ostaju ispravni i da se skraceni podaci ispravno upisuju u fajl (analiza granicnih vrijednosti - unos duzi od dozvoljenog).
+ *
+ * \field{Specifikacija testa}
+ * 1. Simulirati unos korisnika:
+ *  * marka = 35 znakova ("ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "123456789")
+ *  * model = 35 znakova ("abcdefghijklmnopqrstuvwxyz" + "123456789")
+ *  * godiste = 2020, cijena = 45.5
+ * 2. Pozvati funkciju dodajAutomobil i uhvatiti ispis.
+ * 3. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Automobil je dodat (brojAutomobila = 1).
+ * 2. Marka i model sadrze samo prvih 29 znakova unosa.
+ * 3. Godiste je 2020 i cijena 45.5 (visak marke i modela nije procitan kao vrijednost sljedeceg polja).
+ * 4. Fajl automobila sadrzi liniju sa skracenom markom i modelom i ispravnim ostalim podacima.
+ * \endfield
+ */
+void TestSuite_rent_a_car_akcije_gtest_DodajAutomobil_PredugackiPodaciSeSkracujuUFajlu(void)
+{
+    const char* ispis = izvrsi(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789\n"
+        "abcdefghijklmnopqrstuvwxyz123456789\n"
+        "2020\n"
+        "45.5\n", dodaj);
+    const char* sadrzaj;
+
+    CPPTEST_ASSERT_INTEGER_EQUAL(1, brojAutomobila);
+    CPPTEST_ASSERT_CSTR_EQUAL("ABCDEFGHIJKLMNOPQRSTUVWXYZ123", automobili[0].marka);
+    CPPTEST_ASSERT_CSTR_EQUAL("abcdefghijklmnopqrstuvwxyz123", automobili[0].model);
+    CPPTEST_ASSERT_INTEGER_EQUAL(2020, automobili[0].godiste);
+    CPPTEST_ASSERT_FLOAT_EQUAL_DELTA(45.5f, automobili[0].cijena_po_danu, 0.001);
+    CPPTEST_ASSERT_MESSAGE("Ispis treba da sadrzi: Automobil je uspjesno dodat! (ID: 1)", sadrzi(ispis, "Automobil je uspjesno dodat! (ID: 1)"));
+    sadrzaj = procitajFajl(TEST_AUTOMOBILI);
+    CPPTEST_ASSERT_CSTR_EQUAL("1;ABCDEFGHIJKLMNOPQRSTUVWXYZ123;abcdefghijklmnopqrstuvwxyz123;2020;45.50;1\n", sadrzaj);
+}
+/* CPPTEST_TEST_CASE_END DodajAutomobil_PredugackiPodaciSeSkracujuUFajlu */
+
+/* CPPTEST_TEST_CASE_BEGIN IznajmiAutomobil_PrekoracenBrojDanaOtkazuje */
+/**
+ * \tracehead{IznajmiAutomobil_TC_07, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "iznajmiAutomobil" u slucaju kada je unesen broj dana veci od dozvoljenog (analiza granicnih vrijednosti - broj dana = 366, prva nevalidna vrijednost iznad opsega).
+ *
+ * \field{Specifikacija testa}
+ * 1. Postaviti globalno stanje sa 1 dostupnim automobilom (id = 1).
+ * 2. Simulirati unos korisnika:
+ *  * ID = 1, ime = "Marina", prezime = "Gogic", pocetak = "01-01-2026", kraj = "02-01-2027", broj dana = 366
+ * 3. Pozvati funkciju iznajmiAutomobil i uhvatiti ispis.
+ * 4. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Vrijednost brojIznajmljivanja ostaje 0.
+ * 2. Automobil ostaje dostupan (dostupan = 1).
+ * 3. Ispisana je poruka "Broj dana mora biti u opsegu 1-365. Iznajmljivanje otkazano.".
+ * 4. Nijedan fajl nije napravljen.
+ * \endfield
+ */
+void TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_PrekoracenBrojDanaOtkazuje(void)
+{
+    const char* ispis;
+
+    dodajAuto(1, "Volkswagen", "Golf", 2020, 45.0f, 1);
+
+    ispis = izvrsi("1\nMarina\nGogic\n01-01-2026\n02-01-2027\n366\n", iznajmi);
+
+    CPPTEST_ASSERT_INTEGER_EQUAL(0, brojIznajmljivanja);
+    CPPTEST_ASSERT_INTEGER_EQUAL(1, automobili[0].dostupan);
+    CPPTEST_ASSERT_MESSAGE("Ispis treba da sadrzi: Broj dana mora biti u opsegu 1-365. Iznajmljivanje otkazano.", sadrzi(ispis, "Broj dana mora biti u opsegu 1-365. Iznajmljivanje otkazano."));
+    CPPTEST_ASSERT(!(postojiFajl(TEST_IZNAJMLJIVANJA)));
+    CPPTEST_ASSERT(!(postojiFajl(TEST_AUTOMOBILI)));
+}
+/* CPPTEST_TEST_CASE_END IznajmiAutomobil_PrekoracenBrojDanaOtkazuje */
+
+/* CPPTEST_TEST_CASE_BEGIN IznajmiAutomobil_JednoSlobodnoMjestoIznajmljuje */
+/**
+ * \tracehead{IznajmiAutomobil_TC_08, Funkcionalni test}
+ * Test provjerava ispravno ponasanje funkcije "iznajmiAutomobil" u slucaju kada je u nizu zapisa ostalo tacno jedno slobodno mjesto (analiza granicnih vrijednosti - MAX_IZNAJMLJIVANJA - 1, posljednja validna vrijednost).
+ *
+ * \field{Specifikacija testa}
+ * 1. Postaviti globalno stanje:
+ *  * 1 dostupan automobil (id = 1)
+ *  * brojIznajmljivanja = MAX_IZNAJMLJIVANJA - 1 (199), zavrseni zapisi sa id = 1 .. 199
+ * 2. Simulirati unos korisnika:
+ *  * ID = 1, ime = "Marina", prezime = "Gogic", pocetak = "27-07-2026", kraj = "28-07-2026", broj dana = 1
+ * 3. Pozvati funkciju iznajmiAutomobil i uhvatiti ispis.
+ * 4. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Vrijednost brojIznajmljivanja je jednaka MAX_IZNAJMLJIVANJA (zapis je dodat na posljednje slobodno mjesto).
+ * 2. Novi zapis ima id = 200 i aktivno = 1.
+ * 3. Automobil je oznacen kao iznajmljen (dostupan = 0).
+ * 4. Ispisana je poruka "Automobil je uspjesno iznajmljen!".
+ * \endfield
+ */
+void TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_JednoSlobodnoMjestoIznajmljuje(void)
+{
+    const char* ispis;
+    int i;
+
+    dodajAuto(1, "Volkswagen", "Golf", 2020, 45.0f, 1);
+    for (i = 1; i < MAX_IZNAJMLJIVANJA; i++)
+    {
+        dodajIznajmljivanje(i, 1, 0);
+    }
+    CPPTEST_ASSERT_INTEGER_EQUAL(MAX_IZNAJMLJIVANJA - 1, brojIznajmljivanja);
+
+    ispis = izvrsi("1\nMarina\nGogic\n27-07-2026\n28-07-2026\n1\n", iznajmi);
+
+    CPPTEST_ASSERT_INTEGER_EQUAL(MAX_IZNAJMLJIVANJA, brojIznajmljivanja);
+    CPPTEST_ASSERT_INTEGER_EQUAL(MAX_IZNAJMLJIVANJA, iznajmljivanja[MAX_IZNAJMLJIVANJA - 1].id);
+    CPPTEST_ASSERT_INTEGER_EQUAL(1, iznajmljivanja[MAX_IZNAJMLJIVANJA - 1].aktivno);
+    CPPTEST_ASSERT_INTEGER_EQUAL(0, automobili[0].dostupan);
+    CPPTEST_ASSERT_MESSAGE("Ispis treba da sadrzi: Automobil je uspjesno iznajmljen!", sadrzi(ispis, "Automobil je uspjesno iznajmljen!"));
+}
+/* CPPTEST_TEST_CASE_END IznajmiAutomobil_JednoSlobodnoMjestoIznajmljuje */
+
+/* CPPTEST_TEST_CASE_BEGIN IznajmiAutomobil_PredugackiPodaciSeSkracujuUFajlu */
+/**
+ * \tracehead{IznajmiAutomobil_TC_09, Funkcionalni test}
+ * Test provjerava da funkcija "iznajmiAutomobil" predugacko ime, prezime i datume skracuje na najveci dozvoljeni broj znakova (ime i prezime: DUZINA_IMENA - 1 = 49, datum: DUZINA_DATUMA - 1 = 10), da ostali podaci ostaju ispravni i da se skraceni podaci ispravno upisuju u fajl (analiza granicnih vrijednosti - unos duzi od dozvoljenog).
+ *
+ * \field{Specifikacija testa}
+ * 1. Postaviti globalno stanje sa 1 dostupnim automobilom (id = 1, cijena_po_danu = 45.0).
+ * 2. Simulirati unos korisnika:
+ *  * ID = 1
+ *  * ime = 60 znakova (49 x "A" + "VISAKIMENAX")
+ *  * prezime = 60 znakova (49 x "B" + "VISAKPREZXY")
+ *  * pocetak = "27-07-2026XY", kraj = "30-07-2026XY" (po 12 znakova)
+ *  * broj dana = 3
+ * 3. Pozvati funkciju iznajmiAutomobil i uhvatiti ispis.
+ * 4. Provjeriti ocekivane rezultate.
+ * \endfield
+ *
+ * \field{Ocekivani rezultati}
+ * Ocekivani rezultat je Passed
+ * 1. Zapis je dodat (brojIznajmljivanja = 1).
+ * 2. Ime i prezime sadrze samo prvih 49 znakova, a datumi samo prvih 10 znakova unosa.
+ * 3. Broj dana je 3 i ukupna cijena 135.0 (visak nije procitan kao vrijednost sljedeceg polja).
+ * 4. Fajl iznajmljivanja sadrzi liniju sa skracenim podacima i ispravnim brojem dana i cijenom.
+ * \endfield
+ */
+void TestSuite_rent_a_car_akcije_gtest_IznajmiAutomobil_PredugackiPodaciSeSkracujuUFajlu(void)
+{
+    char ime49[50];
+    char prezime49[50];
+    char unos[256];
+    char ocekivanaLinija[256];
+    const char* ispis;
+    const char* sadrzaj;
+
+    memset(ime49, 'A', 49);
+    ime49[49] = '\0';
+    memset(prezime49, 'B', 49);
+    prezime49[49] = '\0';
+    dodajAuto(1, "Volkswagen", "Golf", 2020, 45.0f, 1);
+
+    /* ime i prezime po 60 znakova, datumi po 12 znakova */
+    sprintf(unos, "1\n%sVISAKIMENAX\n%sVISAKPREZXY\n27-07-2026XY\n30-07-2026XY\n3\n", ime49, prezime49);
+    ispis = izvrsi(unos, iznajmi);
+
+    CPPTEST_ASSERT_INTEGER_EQUAL(1, brojIznajmljivanja);
+    CPPTEST_ASSERT_CSTR_EQUAL(ime49, iznajmljivanja[0].ime);
+    CPPTEST_ASSERT_CSTR_EQUAL(prezime49, iznajmljivanja[0].prezime);
+    CPPTEST_ASSERT_CSTR_EQUAL("27-07-2026", iznajmljivanja[0].datum_pocetka);
+    CPPTEST_ASSERT_CSTR_EQUAL("30-07-2026", iznajmljivanja[0].datum_kraja);
+    CPPTEST_ASSERT_INTEGER_EQUAL(3, iznajmljivanja[0].broj_dana);
+    CPPTEST_ASSERT_FLOAT_EQUAL_DELTA(135.0f, iznajmljivanja[0].ukupna_cijena, 0.001);
+    CPPTEST_ASSERT_MESSAGE("Ispis treba da sadrzi: Ukupna cijena: 135.00 KM", sadrzi(ispis, "Ukupna cijena: 135.00 KM"));
+
+    sprintf(ocekivanaLinija, "1;1;%s;%s;27-07-2026;30-07-2026;3;135.00;1\n", ime49, prezime49);
+    sadrzaj = procitajFajl(TEST_IZNAJMLJIVANJA);
+    CPPTEST_ASSERT_CSTR_EQUAL(ocekivanaLinija, sadrzaj);
+}
+/* CPPTEST_TEST_CASE_END IznajmiAutomobil_PredugackiPodaciSeSkracujuUFajlu */
